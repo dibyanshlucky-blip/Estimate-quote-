@@ -1,0 +1,6 @@
+{
+  "name": "Divyansh Paint",
+  "description": "Painting measurement, rate list, estimation and quotation app for Divyansh Enterprises, Pune.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
