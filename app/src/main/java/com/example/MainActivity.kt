@@ -154,12 +154,18 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
                                 deduct, wall, ceil, notes
                             )
                         },
+                        onSaveDetailedRoom = { room -> viewModel.saveDetailedRoom(room) },
                         onUpdateRoom = { room -> viewModel.updateRoom(room) },
                         onDeleteRoom = { roomId -> viewModel.deleteRoom(roomId) },
                         onDuplicateRoom = { room -> viewModel.duplicateRoom(room) },
                         onToggleDeductOpenings = { deduct ->
                             activeProjectDetails?.project?.let {
                                 viewModel.updateProject(it.copy(deductOpenings = deduct))
+                            }
+                        },
+                        onUpdateProjectMode = { mode ->
+                            activeProjectDetails?.project?.let {
+                                viewModel.updateProject(it.copy(estimateMode = mode))
                             }
                         },
                         onNavigateToEstimates = { viewModel.navigateTo(AppScreen.ESTIMATE_BUILDER) }

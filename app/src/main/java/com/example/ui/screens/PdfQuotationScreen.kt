@@ -274,16 +274,117 @@ fun PdfQuotationScreen(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = "Work Description", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(2f))
-                            Text(text = "Qty", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                            Text(text = "Surface / Item", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(2f))
+                            Text(text = "Gross / Ded / Net", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1.3f))
                             if (!isLabourOnly) {
-                                Text(text = "Mat / Lab", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1.5f))
+                                Text(text = "Rate (₹)", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1f))
                             }
-                            Text(text = "Amount", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1.2f))
+                            Text(text = "Amount", fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.weight(1.1f))
                         }
                     }
 
-                    // Work Items List
+                    // Room-wise Wall and Ceiling Rows
+                    projectDetails?.rooms?.forEachIndexed { rIdx, room ->
+                        val details = room.getParsedDetails()
+                        val netWall = room.getNetWallAreaSqft(projectDetails.project.deductOpenings)
+                        val netCeil = room.netCeilingAreaSqft
+                        val wallAmt = details.wallPaint.calculateAmount(netWall, isLabourOnly)
+                        val ceilAmt = details.ceilingPaint.calculateAmount(netCeil, isLabourOnly)
+
+                        // Room Header
+                        Surface(
+                            color = Color(0xFFEEF2FF),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "ROOM ${rIdx + 1}: ${room.roomName.uppercase()}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.5.sp,
+                                color = PrimaryNavy,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        // Wall Row
+                        if (room.wallPaintingEnabled) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(2f)) {
+                                    Text(text = "Wall: ${details.wallPaint.brand} (${details.wallPaint.productType})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(text = "${details.wallPaint.coats} Coats • ₹${details.wallPaint.getEffectiveRate(isLabourOnly)}/sq.ft", fontSize = 9.5.sp, color = Color(0xFF1D4ED8))
+                                }
+                                Text(
+                                    text = "${CurrencyUtils.formatSqft(room.grossWallAreaSqft)} − ${CurrencyUtils.formatSqft(room.totalDeductionsSqft)} = ${CurrencyUtils.formatSqft(netWall)}",
+                                    fontSize = 9.5.sp,
+                                    modifier = Modifier.weight(1.3f)
+                                )
+                                if (!isLabourOnly) {
+                                    Text(text = "₹${details.wallPaint.totalRate}", fontSize = 10.sp, modifier = Modifier.weight(1f))
+                                }
+                                Text(
+                                    text = CurrencyUtils.formatInr(wallAmt),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1.1f)
+                                )
+                            }
+                        }
+
+                        // Ceiling Row
+                        if (room.ceilingPaintingEnabled) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(2f)) {
+                                    Text(text = "Ceiling: ${details.ceilingPaint.brand} (${details.ceilingPaint.productType})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(text = "${details.ceilingPaint.coats} Coats • ₹${details.ceilingPaint.getEffectiveRate(isLabourOnly)}/sq.ft", fontSize = 9.5.sp, color = Color(0xFF1D4ED8))
+                                }
+                                Text(
+                                    text = "${CurrencyUtils.formatSqft(room.grossCeilingAreaSqft)} − ${CurrencyUtils.formatSqft(room.totalCeilingDeductionsSqft)} = ${CurrencyUtils.formatSqft(netCeil)}",
+                                    fontSize = 9.5.sp,
+                                    modifier = Modifier.weight(1.3f)
+                                )
+                                if (!isLabourOnly) {
+                                    Text(text = "₹${details.ceilingPaint.totalRate}", fontSize = 10.sp, modifier = Modifier.weight(1f))
+                                }
+                                Text(
+                                    text = CurrencyUtils.formatInr(ceilAmt),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1.1f)
+                                )
+                            }
+                        }
+
+                        // Putty / Primer line
+                        val preps = mutableListOf<String>()
+                        if (details.wallPutty.enabled) preps.add("Wall Putty: ${CurrencyUtils.formatInr(details.wallPutty.calculateAmount(netWall, isLabourOnly))}")
+                        if (details.wallPrimer.enabled) preps.add("Wall Primer: ${CurrencyUtils.formatInr(details.wallPrimer.calculateAmount(netWall, isLabourOnly))}")
+                        if (details.ceilingPutty.enabled) preps.add("Ceil Putty: ${CurrencyUtils.formatInr(details.ceilingPutty.calculateAmount(netCeil, isLabourOnly))}")
+                        if (details.ceilingPrimer.enabled) preps.add("Ceil Primer: ${CurrencyUtils.formatInr(details.ceilingPrimer.calculateAmount(netCeil, isLabourOnly))}")
+
+                        if (preps.isNotEmpty()) {
+                            Text(
+                                text = "  ▸ Surface Prep: ${preps.joinToString(" • ")}",
+                                fontSize = 9.sp,
+                                color = Color(0xFF047857),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        HorizontalDivider(color = Color(0xFFE2E8F0))
+                    }
+
+                    // Direct estimate items if any
                     items.forEachIndexed { idx, itm ->
                         Row(
                             modifier = Modifier
@@ -308,30 +409,22 @@ fun PdfQuotationScreen(
                                 } else {
                                     Text(text = "${itm.category} • ${itm.coats} coats", fontSize = 9.5.sp, color = Slate500)
                                 }
-                                if (itm.remarks.isNotBlank()) {
-                                    Text(
-                                        text = "Remarks: ${itm.remarks}",
-                                        fontSize = 9.sp,
-                                        color = Color(0xFFB45309),
-                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                    )
-                                }
                             }
-                            Text(text = "${itm.quantity.toInt()} ${itm.unit}", fontSize = 11.sp, modifier = Modifier.weight(1f))
+                            Text(text = "${itm.quantity.toInt()} ${itm.unit}", fontSize = 11.sp, modifier = Modifier.weight(1.3f))
                             if (!isLabourOnly) {
-                                Text(text = "₹${itm.materialRate} / ₹${itm.labourRate}", fontSize = 10.sp, modifier = Modifier.weight(1.5f))
+                                Text(text = "₹${itm.materialRate} / ₹${itm.labourRate}", fontSize = 10.sp, modifier = Modifier.weight(1f))
                                 Text(
                                     text = CurrencyUtils.formatInr(itm.totalAmountMaterialAndLabour),
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.weight(1.2f)
+                                    modifier = Modifier.weight(1.1f)
                                 )
                             } else {
                                 Text(
                                     text = CurrencyUtils.formatInr(itm.totalAmountLabourOnly),
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.weight(1.2f)
+                                    modifier = Modifier.weight(1.1f)
                                 )
                             }
                         }

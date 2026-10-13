@@ -263,7 +263,8 @@ class PaintingViewModel(application: Application) : AndroidViewModel(application
         additionalDeductionsSqft: Double,
         wallPainting: Boolean,
         ceilingPainting: Boolean,
-        notes: String
+        notes: String,
+        detailedData: String = ""
     ) {
         val projId = _selectedProjectId.value ?: return
         viewModelScope.launch {
@@ -285,9 +286,21 @@ class PaintingViewModel(application: Application) : AndroidViewModel(application
                 additionalDeductionsSqft = additionalDeductionsSqft,
                 wallPaintingEnabled = wallPainting,
                 ceilingPaintingEnabled = ceilingPainting,
-                notes = notes
+                notes = notes,
+                detailedData = detailedData
             )
             repository.insertRoom(room)
+        }
+    }
+
+    fun saveDetailedRoom(room: RoomMeasurementEntity) {
+        val projId = _selectedProjectId.value ?: return
+        viewModelScope.launch {
+            if (room.id == 0L) {
+                repository.insertRoom(room.copy(projectId = projId))
+            } else {
+                repository.updateRoom(room.copy(projectId = projId))
+            }
         }
     }
 

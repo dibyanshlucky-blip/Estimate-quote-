@@ -25,15 +25,23 @@ import java.io.IOException
 
 object PdfGenerator {
 
+    /**
+     * Generates a professional multi-page A4 quotation PDF for Divyansh Enterprises.
+     * Includes separate Wall and Ceiling measurement rows, gross area, deductions, net area,
+     * paint brand, product name, number of coats, rates, putty/primer, totals, and signature block.
+     */
     fun generateQuotationPdf(
         context: Context,
         projectDetails: ProjectWithDetails,
         isLabourOnly: Boolean
     ): File {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // Standard A4 (595 x 842 pt)
-        val page = pdfDocument.startPage(pageInfo)
-        val canvas: Canvas = page.canvas
+        val pageWidth = 595 // Standard A4 width in points
+        val pageHeight = 842 // Standard A4 height in points
+
+        var currentPageNumber = 1
+        var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, currentPageNumber).create())
+        var canvas = page.canvas
 
         val paint = Paint()
         val titlePaint = Paint()
@@ -41,239 +49,310 @@ object PdfGenerator {
         val boldPaint = Paint()
         val smallPaint = Paint()
         val headerPaint = Paint()
-
-        // Background
-        paint.color = Color.WHITE
-        canvas.drawRect(0f, 0f, 595f, 842f, paint)
-
-        // Header Banner - Deep Navy Blue
-        headerPaint.color = Color.rgb(15, 43, 92) // #0F2B5C
-        canvas.drawRect(0f, 0f, 595f, 75f, headerPaint)
-
-        // Gold Accent Stripe
-        paint.color = Color.rgb(217, 119, 6) // Amber/Gold #D97706
-        canvas.drawRect(0f, 75f, 595f, 79f, paint)
-
-        // Header Title
-        titlePaint.color = Color.WHITE
-        titlePaint.textSize = 20f
-        titlePaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("DIVYANSH ENTERPRISES", 30f, 34f, titlePaint)
-
-        smallPaint.color = Color.rgb(254, 243, 199)
-        smallPaint.textSize = 10f
-        canvas.drawText("Painting Contractor • Surface Protection & Decorative Finishes", 30f, 48f, smallPaint)
-        canvas.drawText("Abhimanyu Kumar | Kharadi, Pune, Maharashtra | Ph: +91 98234 56789", 30f, 62f, smallPaint)
-
-        // Estimate Type Badge
-        val badgeTitle = if (isLabourOnly) "LABOUR-ONLY QUOTATION" else "PAINTING ESTIMATE & QUOTATION"
-        boldPaint.color = Color.rgb(15, 43, 92)
-        boldPaint.textSize = 13f
-        boldPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText(badgeTitle, 30f, 102f, boldPaint)
-
-        // Date & Estimate No
-        textPaint.color = Color.rgb(51, 65, 85)
-        textPaint.textSize = 9.5f
-        canvas.drawText("Estimate No: ${projectDetails.project.estimateNumber}", 400f, 96f, textPaint)
-        canvas.drawText("Date: ${projectDetails.project.estimateDate}", 400f, 108f, textPaint)
-
-        // Divider
-        paint.color = Color.rgb(226, 232, 240)
-        canvas.drawLine(30f, 116f, 565f, 116f, paint)
-
-        // Client & Site Details Box
-        paint.color = Color.rgb(248, 250, 252)
-        canvas.drawRoundRect(30f, 122f, 565f, 185f, 6f, 6f, paint)
-        paint.style = Paint.Style.STROKE
-        paint.color = Color.rgb(203, 213, 225)
-        canvas.drawRoundRect(30f, 122f, 565f, 185f, 6f, 6f, paint)
-        paint.style = Paint.Style.FILL
-
-        boldPaint.textSize = 9.5f
-        canvas.drawText("CLIENT DETAILS:", 40f, 137f, boldPaint)
-        textPaint.textSize = 9f
-        canvas.drawText("Name: ${projectDetails.project.customerName}", 40f, 151f, textPaint)
-        canvas.drawText("Mobile: ${projectDetails.project.mobileNumber}", 40f, 164f, textPaint)
-        canvas.drawText("Flat/Property: ${projectDetails.project.flatType}", 40f, 177f, textPaint)
-
-        canvas.drawText("SITE DETAILS:", 300f, 137f, boldPaint)
-        canvas.drawText("Site: ${projectDetails.project.siteName}", 300f, 151f, textPaint)
-        val siteAddr = if (projectDetails.project.siteAddress.length > 40) {
-            projectDetails.project.siteAddress.take(38) + "..."
-        } else {
-            projectDetails.project.siteAddress
+        val linePaint = Paint().apply {
+            color = Color.rgb(226, 232, 240)
+            strokeWidth = 0.8f
         }
-        canvas.drawText("Address: $siteAddr", 300f, 164f, textPaint)
-        canvas.drawText("Deduct Openings: ${if (projectDetails.project.deductOpenings) "Yes (Net Wall Area)" else "No (Gross Area)"}", 300f, 177f, textPaint)
 
-        // Table Header
+        fun drawHeaderAndClientDetails(c: Canvas) {
+            // White Background
+            paint.color = Color.WHITE
+            c.drawRect(0f, 0f, pageWidth.toFloat(), pageHeight.toFloat(), paint)
+
+            // Header Banner - Deep Navy Blue
+            headerPaint.color = Color.rgb(15, 43, 92) // #0F2B5C
+            c.drawRect(0f, 0f, pageWidth.toFloat(), 75f, headerPaint)
+
+            // Gold Accent Stripe
+            paint.color = Color.rgb(217, 119, 6) // Amber/Gold #D97706
+            c.drawRect(0f, 75f, pageWidth.toFloat(), 79f, paint)
+
+            // Header Title
+            titlePaint.color = Color.WHITE
+            titlePaint.textSize = 20f
+            titlePaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            c.drawText("DIVYANSH ENTERPRISES", 30f, 34f, titlePaint)
+
+            smallPaint.color = Color.rgb(254, 243, 199)
+            smallPaint.textSize = 10f
+            c.drawText("Painting Contractor • Surface Protection & Decorative Finishes", 30f, 48f, smallPaint)
+            c.drawText("Abhimanyu Kumar | Kharadi, Pune, Maharashtra | Ph: +91 98234 56789", 30f, 62f, smallPaint)
+
+            // Estimate Type Badge
+            val badgeTitle = if (isLabourOnly) "LABOUR-ONLY PAINTING QUOTATION" else "PAINTING ESTIMATE & QUOTATION"
+            boldPaint.color = Color.rgb(15, 43, 92)
+            boldPaint.textSize = 12f
+            boldPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            c.drawText(badgeTitle, 30f, 100f, boldPaint)
+
+            // Date & Estimate No
+            textPaint.color = Color.rgb(51, 65, 85)
+            textPaint.textSize = 9.5f
+            c.drawText("Estimate No: ${projectDetails.project.estimateNumber}", 385f, 96f, textPaint)
+            c.drawText("Date: ${projectDetails.project.estimateDate}", 385f, 108f, textPaint)
+
+            c.drawLine(30f, 115f, 565f, 115f, linePaint)
+
+            // Client & Site Details Box
+            paint.color = Color.rgb(248, 250, 252)
+            c.drawRoundRect(30f, 120f, 565f, 185f, 6f, 6f, paint)
+            paint.style = Paint.Style.STROKE
+            paint.color = Color.rgb(203, 213, 225)
+            c.drawRoundRect(30f, 120f, 565f, 185f, 6f, 6f, paint)
+            paint.style = Paint.Style.FILL
+
+            boldPaint.textSize = 9f
+            boldPaint.color = Color.rgb(15, 23, 42)
+            c.drawText("CLIENT DETAILS:", 40f, 135f, boldPaint)
+            textPaint.textSize = 8.5f
+            c.drawText("Name: ${projectDetails.project.customerName}", 40f, 149f, textPaint)
+            c.drawText("Mobile: ${projectDetails.project.mobileNumber}", 40f, 162f, textPaint)
+            c.drawText("Property: ${projectDetails.project.flatType}", 40f, 175f, textPaint)
+
+            c.drawText("SITE DETAILS:", 290f, 135f, boldPaint)
+            c.drawText("Site Name: ${projectDetails.project.siteName}", 290f, 149f, textPaint)
+            val addr = if (projectDetails.project.siteAddress.length > 44) projectDetails.project.siteAddress.take(42) + "..." else projectDetails.project.siteAddress
+            c.drawText("Site Address: $addr", 290f, 162f, textPaint)
+            c.drawText("Mode: ${if (isLabourOnly) "Labour Only" else "Material + Labour"}", 290f, 175f, textPaint)
+        }
+
+        // Draw initial page header
+        drawHeaderAndClientDetails(canvas)
+
+        // Draw Table Column Headers
         var yPos = 205f
-        paint.color = Color.rgb(241, 245, 249)
-        canvas.drawRect(30f, yPos, 565f, yPos + 18f, paint)
 
-        boldPaint.color = Color.rgb(30, 41, 59)
-        boldPaint.textSize = 8.5f
-        canvas.drawText("SR", 35f, yPos + 13f, boldPaint)
-        canvas.drawText("WORK SPECIFICATIONS & REMARKS", 55f, yPos + 13f, boldPaint)
-        canvas.drawText("QTY & UNIT", 295f, yPos + 13f, boldPaint)
-        if (!isLabourOnly) {
-            canvas.drawText("MAT. RATE", 365f, yPos + 13f, boldPaint)
-            canvas.drawText("LAB. RATE", 435f, yPos + 13f, boldPaint)
-            canvas.drawText("TOTAL (₹)", 505f, yPos + 13f, boldPaint)
-        } else {
-            canvas.drawText("LAB. RATE", 415f, yPos + 13f, boldPaint)
-            canvas.drawText("AMOUNT (₹)", 495f, yPos + 13f, boldPaint)
+        fun drawTableHeader(c: Canvas, y: Float) {
+            paint.color = Color.rgb(241, 245, 249)
+            c.drawRect(30f, y, 565f, y + 18f, paint)
+
+            boldPaint.color = Color.rgb(30, 41, 59)
+            boldPaint.textSize = 8f
+            c.drawText("ITEM / SURFACE DESCRIPTION", 35f, y + 12f, boldPaint)
+            c.drawText("GROSS", 230f, y + 12f, boldPaint)
+            c.drawText("DEDUCT", 275f, y + 12f, boldPaint)
+            c.drawText("NET SQFT", 325f, y + 12f, boldPaint)
+            if (!isLabourOnly) {
+                c.drawText("MAT. ₹", 380f, y + 12f, boldPaint)
+                c.drawText("LAB. ₹", 435f, y + 12f, boldPaint)
+                c.drawText("TOTAL (₹)", 495f, y + 12f, boldPaint)
+            } else {
+                c.drawText("LAB. RATE", 420f, y + 12f, boldPaint)
+                c.drawText("AMOUNT (₹)", 495f, y + 12f, boldPaint)
+            }
         }
 
+        drawTableHeader(canvas, yPos)
         yPos += 22f
-        textPaint.textSize = 8.5f
-        textPaint.color = Color.rgb(15, 23, 42)
 
         val productPaint = Paint().apply {
-            color = Color.rgb(29, 78, 216) // Blue 700
-            textSize = 7.3f
+            color = Color.rgb(29, 78, 216) // Blue
+            textSize = 7.5f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
 
-        val remarksPaint = Paint().apply {
-            color = Color.rgb(180, 83, 9) // Amber 700
-            textSize = 7.0f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+        val prepPaint = Paint().apply {
+            color = Color.rgb(4, 120, 87) // Emerald
+            textSize = 7.5f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
         }
 
-        val items = projectDetails.estimateItems
-        items.take(12).forEachIndexed { index, item ->
-            val desc = if (item.workDescription.length > 38) item.workDescription.take(36) + "..." else item.workDescription
-            canvas.drawText("${index + 1}", 35f, yPos, textPaint)
-            canvas.drawText(desc, 55f, yPos, boldPaint)
-            canvas.drawText("${item.quantity.toInt()} ${item.unit}", 295f, yPos, textPaint)
+        val rooms = projectDetails.rooms
 
-            if (!isLabourOnly) {
-                canvas.drawText("₹${item.materialRate}", 365f, yPos, textPaint)
-                canvas.drawText("₹${item.labourRate}", 435f, yPos, textPaint)
-                canvas.drawText(CurrencyUtils.formatInr(item.totalAmountMaterialAndLabour), 505f, yPos, textPaint)
-            } else {
-                canvas.drawText("₹${item.labourRate}", 415f, yPos, textPaint)
-                canvas.drawText(CurrencyUtils.formatInr(item.totalAmountLabourOnly), 495f, yPos, textPaint)
+        // Render each Room: separate Wall and Ceiling rows, deductions, brand, rate, amount
+        rooms.forEachIndexed { rIndex, room ->
+            val details = room.getParsedDetails()
+            val netWall = room.getNetWallAreaSqft(projectDetails.project.deductOpenings)
+            val netCeil = room.netCeilingAreaSqft
+
+            val wallAmt = details.wallPaint.calculateAmount(netWall, isLabourOnly)
+            val ceilAmt = details.ceilingPaint.calculateAmount(netCeil, isLabourOnly)
+
+            // Check if page overflow
+            if (yPos > 670f) {
+                pdfDocument.finishPage(page)
+                currentPageNumber++
+                page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, currentPageNumber).create())
+                canvas = page.canvas
+                drawHeaderAndClientDetails(canvas)
+                yPos = 205f
+                drawTableHeader(canvas, yPos)
+                yPos += 22f
             }
 
-            if (item.hasProductDetails) {
-                yPos += 10f
-                val brandPart = if (item.brandName.isNotBlank()) "Brand: ${item.brandName}" else ""
-                val prodPart = if (item.productName.isNotBlank()) "Product: ${item.productName}" else ""
-                val varPart = if (item.productVariant.isNotBlank()) "(${item.productVariant})" else ""
-                val finishPart = if (item.finish.isNotBlank()) "Finish: ${item.finish}" else ""
-                val coatPart = "${item.coats} Coats"
-                val specs = listOf(brandPart, "$prodPart $varPart".trim(), finishPart, coatPart).filter { it.isNotBlank() }.joinToString(" • ")
-                val truncatedSpecs = if (specs.length > 74) specs.take(72) + "..." else specs
-                canvas.drawText("  ▸ $truncatedSpecs", 55f, yPos, productPaint)
-            }
-
-            if (item.remarks.isNotBlank()) {
-                yPos += 9.5f
-                val remText = "Remarks: ${item.remarks}"
-                val truncatedRem = if (remText.length > 76) remText.take(74) + "..." else remText
-                canvas.drawText("  • $truncatedRem", 55f, yPos, remarksPaint)
-            }
-
-            paint.color = Color.rgb(241, 245, 249)
-            canvas.drawLine(30f, yPos + 4f, 565f, yPos + 4f, paint)
-            yPos += 14f
-        }
-
-        // Measurement Summary Snippet (Rooms)
-        if (projectDetails.rooms.isNotEmpty() && yPos < 460f) {
-            yPos += 10f
-            paint.color = Color.rgb(254, 243, 199)
-            canvas.drawRect(30f, yPos, 565f, yPos + 16f, paint)
-            boldPaint.color = Color.rgb(120, 53, 15)
+            // Room Title Banner Row
+            paint.color = Color.rgb(238, 242, 255)
+            canvas.drawRect(30f, yPos, 565f, yPos + 14f, paint)
             boldPaint.textSize = 8.5f
-            canvas.drawText("MEASUREMENT SUMMARY: ${projectDetails.rooms.size} Rooms • Net Wall: ${CurrencyUtils.formatSqft(projectDetails.totalRoomNetWallAreaSqft)} • Ceiling: ${CurrencyUtils.formatSqft(projectDetails.totalRoomCeilingAreaSqft)} • Total: ${CurrencyUtils.formatSqft(projectDetails.combinedPaintableSqft)}", 35f, yPos + 12f, boldPaint)
-            yPos += 24f
+            boldPaint.color = Color.rgb(30, 58, 138)
+            canvas.drawText("ROOM ${rIndex + 1}: ${room.roomName.uppercase()}", 35f, yPos + 10.5f, boldPaint)
+            yPos += 18f
+
+            // 1. WALL ROW
+            if (room.wallPaintingEnabled) {
+                textPaint.textSize = 8.5f
+                textPaint.color = Color.rgb(15, 23, 42)
+                canvas.drawText("  • Wall Painting (${details.wallPaint.brand} - ${details.wallPaint.productType})", 35f, yPos, textPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(room.grossWallAreaSqft), 230f, yPos, textPaint)
+                canvas.drawText("−${CurrencyUtils.formatSqft(room.totalDeductionsSqft)}", 275f, yPos, textPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(netWall), 325f, yPos, boldPaint)
+
+                if (!isLabourOnly) {
+                    canvas.drawText("₹${details.wallPaint.materialRate}", 380f, yPos, textPaint)
+                    canvas.drawText("₹${details.wallPaint.labourRate}", 435f, yPos, textPaint)
+                    canvas.drawText(CurrencyUtils.formatInr(wallAmt), 495f, yPos, boldPaint)
+                } else {
+                    canvas.drawText("₹${details.wallPaint.labourRate}", 420f, yPos, textPaint)
+                    canvas.drawText(CurrencyUtils.formatInr(wallAmt), 495f, yPos, boldPaint)
+                }
+                yPos += 11f
+
+                val wallSpecs = "     Brand: ${details.wallPaint.brand} • ${details.wallPaint.productType} ${details.wallPaint.productVariant} • ${details.wallPaint.coats} Coats"
+                canvas.drawText(wallSpecs, 35f, yPos, productPaint)
+                yPos += 13f
+            }
+
+            // 2. CEILING ROW
+            if (room.ceilingPaintingEnabled) {
+                textPaint.textSize = 8.5f
+                textPaint.color = Color.rgb(15, 23, 42)
+                canvas.drawText("  • Ceiling Painting (${details.ceilingPaint.brand} - ${details.ceilingPaint.productType})", 35f, yPos, textPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(room.grossCeilingAreaSqft), 230f, yPos, textPaint)
+                canvas.drawText("−${CurrencyUtils.formatSqft(room.totalCeilingDeductionsSqft)}", 275f, yPos, textPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(netCeil), 325f, yPos, boldPaint)
+
+                if (!isLabourOnly) {
+                    canvas.drawText("₹${details.ceilingPaint.materialRate}", 380f, yPos, textPaint)
+                    canvas.drawText("₹${details.ceilingPaint.labourRate}", 435f, yPos, textPaint)
+                    canvas.drawText(CurrencyUtils.formatInr(ceilAmt), 495f, yPos, boldPaint)
+                } else {
+                    canvas.drawText("₹${details.ceilingPaint.labourRate}", 420f, yPos, textPaint)
+                    canvas.drawText(CurrencyUtils.formatInr(ceilAmt), 495f, yPos, boldPaint)
+                }
+                yPos += 11f
+
+                val ceilSpecs = "     Brand: ${details.ceilingPaint.brand} • ${details.ceilingPaint.productType} ${details.ceilingPaint.productVariant} • ${details.ceilingPaint.coats} Coats"
+                canvas.drawText(ceilSpecs, 35f, yPos, productPaint)
+                yPos += 13f
+            }
+
+            // 3. Optional Putty and Primer lines if enabled in room
+            val prepItems = mutableListOf<String>()
+            if (details.wallPutty.enabled) prepItems.add("Wall Putty (${details.wallPutty.brand})")
+            if (details.wallPrimer.enabled) prepItems.add("Wall Primer (${details.wallPrimer.brand})")
+            if (details.ceilingPutty.enabled) prepItems.add("Ceiling Putty")
+            if (details.ceilingPrimer.enabled) prepItems.add("Ceiling Primer")
+
+            if (prepItems.isNotEmpty()) {
+                val prepSummary = "     Surface Prep: ${prepItems.joinToString(" • ")}"
+                canvas.drawText(prepSummary, 35f, yPos, prepPaint)
+                yPos += 12f
+            }
+
+            canvas.drawLine(30f, yPos, 565f, yPos, linePaint)
+            yPos += 6f
+        }
+
+        // Direct sqft items if any
+        if (projectDetails.directMeasurements.isNotEmpty()) {
+            projectDetails.directMeasurements.forEach { d ->
+                if (yPos > 670f) {
+                    pdfDocument.finishPage(page)
+                    currentPageNumber++
+                    page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, currentPageNumber).create())
+                    canvas = page.canvas
+                    drawHeaderAndClientDetails(canvas)
+                    yPos = 205f
+                    drawTableHeader(canvas, yPos)
+                    yPos += 22f
+                }
+                canvas.drawText("Direct Area: ${d.surfaceName}", 35f, yPos, textPaint)
+                canvas.drawText("${CurrencyUtils.formatSqft(d.quantity)}", 325f, yPos, textPaint)
+                yPos += 14f
+            }
         }
 
         // Financial Calculation Summary Box
-        val boxTop = 500f.coerceAtLeast(yPos + 15f)
+        val boxTop = 500f.coerceAtLeast(yPos + 10f)
         paint.color = Color.rgb(248, 250, 252)
-        canvas.drawRoundRect(300f, boxTop, 565f, boxTop + 130f, 6f, 6f, paint)
+        canvas.drawRoundRect(290f, boxTop, 565f, boxTop + 140f, 6f, 6f, paint)
         paint.style = Paint.Style.STROKE
         paint.color = Color.rgb(203, 213, 225)
-        canvas.drawRoundRect(300f, boxTop, 565f, boxTop + 130f, 6f, 6f, paint)
+        canvas.drawRoundRect(290f, boxTop, 565f, boxTop + 140f, 6f, 6f, paint)
         paint.style = Paint.Style.FILL
 
-        var finY = boxTop + 18f
-        textPaint.textSize = 9f
-        boldPaint.textSize = 9f
+        var finY = boxTop + 16f
+        textPaint.textSize = 8.5f
+        boldPaint.textSize = 8.5f
 
         val subtotal = if (isLabourOnly) projectDetails.labourSubtotal else projectDetails.materialAndLabourSubtotal
-        canvas.drawText("Subtotal:", 315f, finY, textPaint)
+        canvas.drawText("Subtotal:", 305f, finY, textPaint)
         canvas.drawText(CurrencyUtils.formatInr(subtotal), 485f, finY, boldPaint)
-        finY += 16f
+        finY += 15f
 
         if (projectDetails.project.additionalCharges > 0) {
-            canvas.drawText("Additional Charges:", 315f, finY, textPaint)
+            canvas.drawText("Additional Charges:", 305f, finY, textPaint)
             canvas.drawText(CurrencyUtils.formatInr(projectDetails.project.additionalCharges), 485f, finY, boldPaint)
-            finY += 16f
+            finY += 15f
         }
 
         if (projectDetails.project.discountAmount > 0) {
-            canvas.drawText("Discount:", 315f, finY, textPaint)
-            canvas.drawText("-${CurrencyUtils.formatInr(projectDetails.project.discountAmount)}", 485f, finY, boldPaint)
-            finY += 16f
+            canvas.drawText("Discount:", 305f, finY, textPaint)
+            canvas.drawText("−${CurrencyUtils.formatInr(projectDetails.project.discountAmount)}", 485f, finY, boldPaint)
+            finY += 15f
         }
 
         if (projectDetails.project.isTaxEnabled) {
             val tax = if (isLabourOnly) projectDetails.labourTaxAmount else projectDetails.materialAndLabourTaxAmount
-            canvas.drawText("GST (${projectDetails.project.taxPercent}%):", 315f, finY, textPaint)
+            canvas.drawText("GST (${projectDetails.project.taxPercent}%):", 305f, finY, textPaint)
             canvas.drawText(CurrencyUtils.formatInr(tax), 485f, finY, boldPaint)
-            finY += 16f
+            finY += 15f
         }
 
         val grandTotal = if (isLabourOnly) projectDetails.labourGrandTotal else projectDetails.materialAndLabourGrandTotal
         paint.color = Color.rgb(15, 43, 92)
-        canvas.drawRect(300f, finY - 2f, 565f, finY + 22f, paint)
+        canvas.drawRect(290f, finY - 2f, 565f, finY + 22f, paint)
         boldPaint.color = Color.WHITE
         boldPaint.textSize = 10.5f
-        canvas.drawText("GRAND TOTAL:", 315f, finY + 14f, boldPaint)
+        canvas.drawText("GRAND TOTAL:", 305f, finY + 14f, boldPaint)
         canvas.drawText(CurrencyUtils.formatInr(grandTotal), 475f, finY + 14f, boldPaint)
         finY += 34f
 
-        canvas.drawText("Advance Received: ${CurrencyUtils.formatInr(projectDetails.totalPaid)}", 315f, finY, textPaint)
-        canvas.drawText("Balance Payable: ${CurrencyUtils.formatInr(projectDetails.balancePayable)}", 315f, finY + 14f, boldPaint)
+        canvas.drawText("Advance Received: ${CurrencyUtils.formatInr(projectDetails.totalPaid)}", 305f, finY, textPaint)
+        canvas.drawText("Balance Payable: ${CurrencyUtils.formatInr(projectDetails.balancePayable)}", 305f, finY + 13f, boldPaint)
 
         // Amount in Words
-        val wordsY = boxTop + 140f
+        val wordsY = boxTop + 150f
         boldPaint.color = Color.rgb(15, 23, 42)
         boldPaint.textSize = 8.5f
         canvas.drawText("Amount in Words: ${CurrencyUtils.numberToWordsInr(grandTotal)}", 30f, wordsY, boldPaint)
 
         // Terms and Conditions Box
-        val termsY = wordsY + 16f
+        val termsY = wordsY + 14f
         paint.color = Color.rgb(241, 245, 249)
-        canvas.drawRoundRect(30f, termsY, 565f, termsY + 68f, 4f, 4f, paint)
+        canvas.drawRoundRect(30f, termsY, 565f, termsY + 65f, 4f, 4f, paint)
         boldPaint.textSize = 8f
-        canvas.drawText("TERMS & CONDITIONS:", 38f, termsY + 13f, boldPaint)
+        canvas.drawText("TERMS & CONDITIONS (नियम एवं शर्तें):", 38f, termsY + 12f, boldPaint)
         smallPaint.color = Color.rgb(71, 85, 105)
         smallPaint.textSize = 7.2f
         if (isLabourOnly) {
-            canvas.drawText("• Note: All paints, primers, putty, and consumable materials are to be supplied by the customer at site.", 38f, termsY + 25f, smallPaint)
+            canvas.drawText("• Note: All paints, primers, putty, and consumable materials are to be supplied by the customer at site.", 38f, termsY + 23f, smallPaint)
         } else {
-            canvas.drawText("• Estimate covers standard surface preparation, primer, putty and paint materials specified above.", 38f, termsY + 25f, smallPaint)
+            canvas.drawText("• Estimate covers standard surface preparation, primer, putty and paint materials specified above.", 38f, termsY + 23f, smallPaint)
         }
-        canvas.drawText("• Payment Schedule: 50% advance before commencement, 40% on primer/putty completion, 10% on handover.", 38f, termsY + 36f, smallPaint)
-        canvas.drawText("• Continuous water and uninterrupted electricity at site to be provided by client.", 38f, termsY + 47f, smallPaint)
-        canvas.drawText("• Quotation valid for 30 days from date of issue. Rates applicable for Kharadi & Pune region.", 38f, termsY + 58f, smallPaint)
+        canvas.drawText("• Payment Schedule: 50% advance before commencement, 40% on primer/putty completion, 10% on handover.", 38f, termsY + 34f, smallPaint)
+        canvas.drawText("• Continuous water and uninterrupted electricity at site to be provided by client.", 38f, termsY + 45f, smallPaint)
+        canvas.drawText("• Quotation valid for 30 days. Contact Abhimanyu Kumar, Kharadi, Pune | +91 98234 56789.", 38f, termsY + 56f, smallPaint)
 
-        // Signature Blocks
-        val sigY = termsY + 98f
+        // Customer acceptance and signature space
+        val sigY = termsY + 95f
         paint.color = Color.rgb(100, 116, 139)
-        canvas.drawLine(40f, sigY, 200f, sigY, paint)
-        canvas.drawLine(380f, sigY, 540f, sigY, paint)
+        canvas.drawLine(40f, sigY, 210f, sigY, paint)
+        canvas.drawLine(370f, sigY, 540f, sigY, paint)
         textPaint.textSize = 8.5f
-        canvas.drawText("Customer Acceptance & Signature", 45f, sigY + 14f, textPaint)
-        canvas.drawText("For DIVYANSH ENTERPRISES", 390f, sigY + 14f, textPaint)
-        canvas.drawText("(Abhimanyu Kumar - Authorized Signatory)", 375f, sigY + 26f, smallPaint)
+        canvas.drawText("Customer Acceptance & Signature", 45f, sigY + 13f, textPaint)
+        canvas.drawText("For DIVYANSH ENTERPRISES", 380f, sigY + 13f, textPaint)
+        canvas.drawText("(Abhimanyu Kumar - Authorized Signatory)", 365f, sigY + 24f, smallPaint)
 
         pdfDocument.finishPage(page)
 
@@ -310,12 +389,10 @@ object PdfGenerator {
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_TEXT, summaryText)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                // If customer mobile provided, try targeting WhatsApp
                 setPackage("com.whatsapp")
             }
             context.startActivity(intent)
         } catch (_: Exception) {
-            // Fallback to standard Android Sharesheet
             val uri = getFileUri(context, file)
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/pdf"

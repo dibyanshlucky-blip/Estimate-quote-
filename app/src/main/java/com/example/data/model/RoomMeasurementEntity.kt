@@ -38,7 +38,8 @@ data class RoomMeasurementEntity(
     val additionalDeductionsSqft: Double = 0.0,
     val wallPaintingEnabled: Boolean = true,
     val ceilingPaintingEnabled: Boolean = true,
-    val notes: String = ""
+    val notes: String = "",
+    val detailedData: String = "" // Serialized JSON containing Wall & Ceiling measurements, deductions, paints, putty, primer
 ) {
     val effectiveLength: Double
         get() = lengthFt + (lengthIn / 12.0)
@@ -50,10 +51,24 @@ data class RoomMeasurementEntity(
         get() = heightFt + (heightIn / 12.0)
 
     val floorCeilingAreaSqft: Double
-        get() = effectiveLength * effectiveWidth
+        get() {
+            if (detailedData.isNotBlank()) {
+                val details = RoomDetailsJsonConverter.deserialize(detailedData, this)
+                val grossCeil = details.ceilingEntries.sumOf { it.grossAreaSqft }
+                val ceilDed = details.ceilingDeductions.sumOf { it.deductionAreaSqft }
+                return max(0.0, grossCeil - ceilDed)
+            }
+            return effectiveLength * effectiveWidth
+        }
 
     val grossWallAreaSqft: Double
-        get() = 2 * (effectiveLength + effectiveWidth) * effectiveHeight
+        get() {
+            if (detailedData.isNotBlank()) {
+                val details = RoomDetailsJsonConverter.deserialize(detailedData, this)
+                return details.wallEntries.sumOf { it.grossAreaSqft }
+            }
+            return 2 * (effectiveLength + effectiveWidth) * effectiveHeight
+        }
 
     val totalDoorAreaSqft: Double
         get() = doorCount * (doorWidthFt * doorHeightFt)
@@ -62,7 +77,13 @@ data class RoomMeasurementEntity(
         get() = windowCount * (windowWidthFt * windowHeightFt)
 
     val totalDeductionsSqft: Double
-        get() = totalDoorAreaSqft + totalWindowAreaSqft + additionalDeductionsSqft
+        get() {
+            if (detailedData.isNotBlank()) {
+                val details = RoomDetailsJsonConverter.deserialize(detailedData, this)
+                return details.wallDeductions.sumOf { it.deductionAreaSqft }
+            }
+            return totalDoorAreaSqft + totalWindowAreaSqft + additionalDeductionsSqft
+        }
 
     fun getNetWallAreaSqft(deductOpenings: Boolean): Double {
         return if (deductOpenings) {
@@ -72,9 +93,34 @@ data class RoomMeasurementEntity(
         }
     }
 
+    val grossCeilingAreaSqft: Double
+        get() {
+            if (detailedData.isNotBlank()) {
+                val details = RoomDetailsJsonConverter.deserialize(detailedData, this)
+                return details.ceilingEntries.sumOf { it.grossAreaSqft }
+            }
+            return effectiveLength * effectiveWidth
+        }
+
+    val totalCeilingDeductionsSqft: Double
+        get() {
+            if (detailedData.isNotBlank()) {
+                val details = RoomDetailsJsonConverter.deserialize(detailedData, this)
+                return details.ceilingDeductions.sumOf { it.deductionAreaSqft }
+            }
+            return 0.0
+        }
+
+    val netCeilingAreaSqft: Double
+        get() = max(0.0, grossCeilingAreaSqft - totalCeilingDeductionsSqft)
+
     fun getTotalPaintableAreaSqft(deductOpenings: Boolean): Double {
         val wallArea = if (wallPaintingEnabled) getNetWallAreaSqft(deductOpenings) else 0.0
-        val ceilingArea = if (ceilingPaintingEnabled) floorCeilingAreaSqft else 0.0
+        val ceilingArea = if (ceilingPaintingEnabled) netCeilingAreaSqft else 0.0
         return wallArea + ceilingArea
+    }
+
+    fun getParsedDetails(): RoomDetailsJsonConverter.ParsedRoomDetails {
+        return RoomDetailsJsonConverter.deserialize(detailedData, this)
     }
 }

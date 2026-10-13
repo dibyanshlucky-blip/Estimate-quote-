@@ -30,6 +30,67 @@ object BrandProductRegistry {
         "Other / Unbranded"
     )
 
+    val wallProductTypes = listOf(
+        "OBD (Oil Bound Distemper)",
+        "Distemper",
+        "Interior Primer",
+        "Interior Emulsion",
+        "Tractor Emulsion",
+        "Apcolite Premium Emulsion",
+        "Royale",
+        "Royale Luxury",
+        "Royale Glitz",
+        "Wall Putty",
+        "Texture Paint",
+        "Luster Paint",
+        "Exterior Paint",
+        "Other"
+    )
+
+    val ceilingProductTypes = listOf(
+        "Ceiling White",
+        "Interior Primer",
+        "Distemper",
+        "Interior Emulsion",
+        "Premium Emulsion",
+        "Other"
+    )
+
+    val roomCategories = listOf(
+        "Bedroom",
+        "Hall",
+        "Kitchen",
+        "Bathroom",
+        "Passage",
+        "Balcony",
+        "Other"
+    )
+
+    val wallDeductionTypes = listOf(
+        "Door",
+        "Window",
+        "Ventilator",
+        "Opening",
+        "Other"
+    )
+
+    val ceilingDeductionTypes = listOf(
+        "Cutout",
+        "Skylight",
+        "Opening",
+        "Shaft",
+        "Other"
+    )
+
+    val brandOptions = listOf(
+        "Asian Paints",
+        "Berger",
+        "Nerolac",
+        "Dulux",
+        "Indigo Paints",
+        "Other / Custom Brand"
+    )
+
     val commonFinishes = listOf(
         "Matt",
         "Sheen",

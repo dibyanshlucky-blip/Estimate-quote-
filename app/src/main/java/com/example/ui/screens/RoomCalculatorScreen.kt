@@ -1,9 +1,13 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,44 +22,55 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.FormatPaint
 import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.BrandProductRegistry
+import com.example.data.model.CeilingMeasurementEntry
+import com.example.data.model.ProjectEntity
 import com.example.data.model.ProjectWithDetails
+import com.example.data.model.RoomDetailsJsonConverter
 import com.example.data.model.RoomMeasurementEntity
+import com.example.data.model.SurfacePaintConfig
+import com.example.data.model.SurfacePrepConfig
+import com.example.data.model.WallDeductionEntry
+import com.example.data.model.WallMeasurementEntry
+import com.example.ui.components.ExpandableRoomCard
 import com.example.ui.theme.AccentGold
 import com.example.ui.theme.PrimaryBlue
 import com.example.ui.theme.PrimaryNavy
@@ -83,17 +98,20 @@ fun RoomCalculatorScreen(
         wallPainting: Boolean, ceilingPainting: Boolean,
         notes: String
     ) -> Unit,
+    onSaveDetailedRoom: (RoomMeasurementEntity) -> Unit,
     onUpdateRoom: (RoomMeasurementEntity) -> Unit,
     onDeleteRoom: (Long) -> Unit,
     onDuplicateRoom: (RoomMeasurementEntity) -> Unit,
     onToggleDeductOpenings: (Boolean) -> Unit,
+    onUpdateProjectMode: (String) -> Unit,
     onNavigateToEstimates: () -> Unit
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
-    var editingRoom by remember { mutableStateOf<RoomMeasurementEntity?>(null) }
+    var showAddRoomDialog by remember { mutableStateOf(false) }
     var roomToDelete by remember { mutableStateOf<RoomMeasurementEntity?>(null) }
 
-    val deductOpenings = projectDetails?.project?.deductOpenings ?: true
+    val project = projectDetails?.project
+    val deductOpenings = project?.deductOpenings ?: true
+    val isLabourOnly = project?.estimateMode == "LABOUR_ONLY"
     val rooms = projectDetails?.rooms ?: emptyList()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -104,6 +122,67 @@ fun RoomCalculatorScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Mode Selector: Labour Only vs Material + Labour
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "ESTIMATE MODE (अनुमान मोड)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                color = PrimaryNavy,
+                                letterSpacing = 1.sp
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isLabourOnly) Color(0xFFFEF3C7) else Color(0xFFDBEAFE)
+                            ) {
+                                Text(
+                                    text = if (isLabourOnly) "Labour Only (केवल लेबर)" else "Material + Labour (मटेरियल + लेबर)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isLabourOnly) Color(0xFF92400E) else PrimaryNavy,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        TabRow(
+                            selectedTabIndex = if (isLabourOnly) 0 else 1,
+                            containerColor = Color.Transparent,
+                            indicator = { tabPositions ->
+                                TabRowDefaults.SecondaryIndicator(
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[if (isLabourOnly) 0 else 1]),
+                                    color = PrimaryNavy
+                                )
+                            }
+                        ) {
+                            Tab(
+                                selected = isLabourOnly,
+                                onClick = { onUpdateProjectMode("LABOUR_ONLY") },
+                                text = { Text("1. Labour Only", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                            )
+                            Tab(
+                                selected = !isLabourOnly,
+                                onClick = { onUpdateProjectMode("MATERIAL_AND_LABOUR") },
+                                text = { Text("2. Material + Labour", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Deduct Openings Global Switch Banner
             item {
                 Card(
@@ -120,13 +199,13 @@ fun RoomCalculatorScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = LanguageManager.get("deduct_openings", language),
+                                text = "Deduct Openings (दीवार कटौती लागू करें)",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
+                                fontSize = 13.5.sp,
                                 color = Slate900
                             )
                             Text(
-                                text = if (deductOpenings) "Doors, windows & extra areas are subtracted from gross wall area"
+                                text = if (deductOpenings) "Doors, windows & openings are subtracted from gross wall area"
                                 else "Count full gross wall area without subtracting openings",
                                 fontSize = 11.sp,
                                 color = Slate500
@@ -145,74 +224,42 @@ fun RoomCalculatorScreen(
                 }
             }
 
-            // Summary Card
+            // PROJECT SUMMARY Banner Card
             item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = PrimaryNavy),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                ProjectComprehensiveSummaryCard(
+                    projectDetails = projectDetails,
+                    isLabourOnly = isLabourOnly
+                )
+            }
+
+            // Quick Add Room / Navigate Row
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "MEASUREMENT TOTALS",
-                                color = AccentGold,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                letterSpacing = 1.sp
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.2f)
-                            ) {
-                                Text(
-                                    text = "${rooms.size} Rooms",
-                                    color = Color.White,
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
+                    Button(
+                        onClick = { showAddRoomDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryNavy),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("btn_add_room_modal")
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "+ Add New Room", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(text = "Net Wall Area", color = Color(0xFFCBD5E1), fontSize = 11.sp)
-                                Text(
-                                    text = CurrencyUtils.formatSqft(projectDetails?.totalRoomNetWallAreaSqft ?: 0.0),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            }
-                            Column {
-                                Text(text = "Ceiling Area", color = Color(0xFFCBD5E1), fontSize = 11.sp)
-                                Text(
-                                    text = CurrencyUtils.formatSqft(projectDetails?.totalRoomCeilingAreaSqft ?: 0.0),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            }
-                            Column {
-                                Text(text = "Total Paintable", color = AccentGold, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    text = CurrencyUtils.formatSqft(projectDetails?.totalRoomPaintableAreaSqft ?: 0.0),
-                                    color = AccentGold,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 16.sp
-                                )
-                            }
-                        }
+                    Button(
+                        onClick = onNavigateToEstimates,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("btn_go_to_quotation")
+                    ) {
+                        Icon(Icons.Default.Calculate, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Rates & Quotation", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -244,101 +291,63 @@ fun RoomCalculatorScreen(
                                 color = Slate700
                             )
                             Text(
-                                text = "Tap '+ Add Room' to record measurements",
+                                text = "Tap '+ Add New Room' to add Bedroom, Hall, Kitchen with independent Wall & Ceiling measurements",
                                 fontSize = 12.sp,
-                                color = Slate500
+                                color = Slate500,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
                 }
             } else {
-                items(rooms) { room ->
-                    RoomItemCard(
+                items(rooms, key = { it.id }) { room ->
+                    ExpandableRoomCard(
                         room = room,
-                        deductOpenings = deductOpenings,
-                        language = language,
-                        onEdit = { editingRoom = room },
+                        deductOpeningsGlobal = deductOpenings,
+                        isLabourOnlyMode = isLabourOnly,
+                        onSaveRoom = { onSaveDetailedRoom(it) },
                         onDuplicate = { onDuplicateRoom(room) },
                         onDelete = { roomToDelete = room }
                     )
                 }
             }
 
-            // Proceed to Estimates Button
             item {
-                Spacer(modifier = Modifier.height(60.dp)) // Padding for FAB
+                Spacer(modifier = Modifier.height(60.dp))
             }
         }
 
-        // Floating Action Button to Add Room
+        // Floating Action Button
         FloatingActionButton(
-            onClick = { showAddDialog = true },
+            onClick = { showAddRoomDialog = true },
             containerColor = PrimaryNavy,
             contentColor = Color.White,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(20.dp)
+                .padding(16.dp)
                 .testTag("fab_add_room")
         ) {
-            Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Add, contentDescription = "Add")
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = LanguageManager.get("add_room", language),
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Icon(Icons.Default.Add, contentDescription = "Add Room")
         }
     }
 
-    // Add / Edit Room Dialog
-    if (showAddDialog || editingRoom != null) {
-        val target = editingRoom
-        RoomFormDialog(
-            language = language,
-            initialRoom = target,
-            onDismiss = {
-                showAddDialog = false
-                editingRoom = null
-            },
-            onSave = { roomName, lFt, lIn, wFt, wIn, hFt, hIn, dCount, dW, dH, winCount, winW, winH, deduct, wall, ceil, notes ->
-                if (target == null) {
-                    onAddRoom(roomName, lFt, lIn, wFt, wIn, hFt, hIn, dCount, dW, dH, winCount, winW, winH, deduct, wall, ceil, notes)
-                } else {
-                    onUpdateRoom(
-                        target.copy(
-                            roomName = roomName,
-                            lengthFt = lFt,
-                            lengthIn = lIn,
-                            widthFt = wFt,
-                            widthIn = wIn,
-                            heightFt = hFt,
-                            heightIn = hIn,
-                            doorCount = dCount,
-                            doorWidthFt = dW,
-                            doorHeightFt = dH,
-                            windowCount = winCount,
-                            windowWidthFt = winW,
-                            windowHeightFt = winH,
-                            additionalDeductionsSqft = deduct,
-                            wallPaintingEnabled = wall,
-                            ceilingPaintingEnabled = ceil,
-                            notes = notes
-                        )
-                    )
-                }
-                showAddDialog = false
-                editingRoom = null
+    // Add Room Dialog (Room name presets, initial L x W x H, brand & paint options)
+    if (showAddRoomDialog) {
+        AddRoomPresetDialog(
+            onDismiss = { showAddRoomDialog = false },
+            onSave = { roomEntity ->
+                onSaveDetailedRoom(roomEntity)
+                showAddRoomDialog = false
             }
         )
     }
 
-    // Delete Confirmation
+    // Delete Confirmation Dialog
     if (roomToDelete != null) {
         AlertDialog(
             onDismissRequest = { roomToDelete = null },
             title = { Text("Delete Room") },
-            text = { Text("Are you sure you want to delete '${roomToDelete?.roomName}'?") },
+            text = { Text("Are you sure you want to delete '${roomToDelete?.roomName}' and all its wall and ceiling measurements?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -358,19 +367,38 @@ fun RoomCalculatorScreen(
     }
 }
 
+/**
+ * PROJECT SUMMARY Component (Item 7 Requirement):
+ * Total Gross Wall Area, Total Wall Deduction, Total Net Wall Area, Total Gross Ceiling Area,
+ * Total Ceiling Deduction, Total Net Ceiling Area, Putty Cost, Primer Cost, Material Cost, Labour Cost, Subtotal, Grand Total.
+ */
 @Composable
-private fun RoomItemCard(
-    room: RoomMeasurementEntity,
-    deductOpenings: Boolean,
-    language: AppLanguage,
-    onEdit: () -> Unit,
-    onDuplicate: () -> Unit,
-    onDelete: () -> Unit
+private fun ProjectComprehensiveSummaryCard(
+    projectDetails: ProjectWithDetails?,
+    isLabourOnly: Boolean
 ) {
+    val totalGrossWall = projectDetails?.totalGrossWallAreaSqft ?: 0.0
+    val totalWallDed = projectDetails?.totalWallDeductionSqft ?: 0.0
+    val totalNetWall = projectDetails?.totalRoomNetWallAreaSqft ?: 0.0
+
+    val totalGrossCeil = projectDetails?.totalGrossCeilingAreaSqft ?: 0.0
+    val totalCeilDed = projectDetails?.totalCeilingDeductionSqft ?: 0.0
+    val totalNetCeil = projectDetails?.totalRoomCeilingAreaSqft ?: 0.0
+
+    val puttyCost = projectDetails?.totalRoomPuttyCost ?: 0.0
+    val primerCost = projectDetails?.totalRoomPrimerCost ?: 0.0
+    val matCost = projectDetails?.totalRoomMaterialCost ?: 0.0
+    val labCost = projectDetails?.totalRoomLabourCost ?: 0.0
+
+    val subtotal = if (isLabourOnly) labCost else (matCost + labCost)
+    val discount = projectDetails?.project?.discountAmount ?: 0.0
+    val tax = if (projectDetails?.project?.isTaxEnabled == true) (subtotal - discount).coerceAtLeast(0.0) * ((projectDetails.project.taxPercent) / 100.0) else 0.0
+    val grandTotal = (subtotal - discount).coerceAtLeast(0.0) + tax
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = PrimaryNavy),
         shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -379,324 +407,272 @@ private fun RoomItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(PrimaryBlue.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MeetingRoom,
-                            contentDescription = null,
-                            tint = PrimaryBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = room.roomName,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.5.sp,
-                            color = Slate900
-                        )
-                        Text(
-                            text = "${room.effectiveLength.toInt()}' × ${room.effectiveWidth.toInt()}' × ${room.effectiveHeight.toInt()}' ft",
-                            fontSize = 11.5.sp,
-                            color = Slate500
-                        )
-                    }
-                }
-
-                Row {
-                    IconButton(onClick = onDuplicate, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate", tint = Slate500, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = PrimaryBlue, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
-                    }
+                Text(
+                    text = "PROJECT SUMMARY (प्रोजेक्ट सारांश)",
+                    color = AccentGold,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.2f)
+                ) {
+                    Text(
+                        text = "${projectDetails?.rooms?.size ?: 0} Rooms",
+                        color = Color.White,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Measurement Metrics Grid
+            // WALL SUMMARY ROW
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(text = "WALL SUMMARY", color = Color(0xFFCBD5E1), fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Gross: ${CurrencyUtils.formatSqft(totalGrossWall)} − Ded: ${CurrencyUtils.formatSqft(totalWallDed)}",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 10.5.sp
+                    )
+                    Text(
+                        text = "Total Net Wall: ${CurrencyUtils.formatSqft(totalNetWall)}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+
+                // CEILING SUMMARY ROW
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = "CEILING SUMMARY", color = Color(0xFFCBD5E1), fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Gross: ${CurrencyUtils.formatSqft(totalGrossCeil)} − Ded: ${CurrencyUtils.formatSqft(totalCeilDed)}",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 10.5.sp
+                    )
+                    Text(
+                        text = "Total Net Ceiling: ${CurrencyUtils.formatSqft(totalNetCeil)}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Financial breakdowns
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Total Putty Cost: ${CurrencyUtils.formatInr(puttyCost)}", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+                Text(text = "Total Primer Cost: ${CurrencyUtils.formatInr(primerCost)}", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+            }
+
+            if (!isLabourOnly) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = "Total Material Cost: ${CurrencyUtils.formatInr(matCost)}", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+                    Text(text = "Total Labour Cost: ${CurrencyUtils.formatInr(labCost)}", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+                }
+            } else {
+                Text(text = "Total Labour Cost: ${CurrencyUtils.formatInr(labCost)}", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Subtotal: ${CurrencyUtils.formatInr(subtotal)}", color = Color.White, fontSize = 11.5.sp)
+                if (discount > 0) {
+                    Text(text = "Discount: −${CurrencyUtils.formatInr(discount)}", color = Color(0xFFFCA5A5), fontSize = 11.sp)
+                }
+                if (tax > 0) {
+                    Text(text = "GST (18%): +${CurrencyUtils.formatInr(tax)}", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFF8FAFC)
+                color = Color.White.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Gross Wall Area:", fontSize = 11.5.sp, color = Slate500)
-                        Text(text = CurrencyUtils.formatSqft(room.grossWallAreaSqft), fontSize = 11.5.sp, fontWeight = FontWeight.Medium)
-                    }
-
-                    if (deductOpenings && room.totalDeductionsSqft > 0) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Deductions (${room.doorCount} doors, ${room.windowCount} windows):",
-                                fontSize = 11.sp,
-                                color = Color(0xFFDC2626)
-                            )
-                            Text(
-                                text = "-${CurrencyUtils.formatSqft(room.totalDeductionsSqft)}",
-                                fontSize = 11.sp,
-                                color = Color(0xFFDC2626),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Net Wall Area:", fontSize = 11.5.sp, color = Slate700, fontWeight = FontWeight.Medium)
-                        Text(
-                            text = CurrencyUtils.formatSqft(room.getNetWallAreaSqft(deductOpenings)),
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryNavy
-                        )
-                    }
-
-                    if (room.ceilingPaintingEnabled) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = "Ceiling Area:", fontSize = 11.5.sp, color = Slate700)
-                            Text(
-                                text = CurrencyUtils.formatSqft(room.floorCeilingAreaSqft),
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Total Paintable Area:",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                        Text(
-                            text = CurrencyUtils.formatSqft(room.getTotalPaintableAreaSqft(deductOpenings)),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TealSuccess
-                        )
-                    }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "GRAND TOTAL (${if (isLabourOnly) "Labour Only" else "Material + Labour"}):",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.5.sp
+                    )
+                    Text(
+                        text = CurrencyUtils.formatInr(grandTotal),
+                        color = AccentGold,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RoomFormDialog(
-    language: AppLanguage,
-    initialRoom: RoomMeasurementEntity?,
+private fun AddRoomPresetDialog(
     onDismiss: () -> Unit,
-    onSave: (
-        roomName: String,
-        lFt: Double, lIn: Double,
-        wFt: Double, wIn: Double,
-        hFt: Double, hIn: Double,
-        dCount: Int, dW: Double, dH: Double,
-        winCount: Int, winW: Double, winH: Double,
-        deduct: Double,
-        wall: Boolean, ceil: Boolean,
-        notes: String
-    ) -> Unit
+    onSave: (RoomMeasurementEntity) -> Unit
 ) {
-    var name by remember { mutableStateOf(initialRoom?.roomName ?: "Master Bedroom") }
-    var lFt by remember { mutableStateOf((initialRoom?.lengthFt ?: 14.0).toString()) }
-    var lIn by remember { mutableStateOf((initialRoom?.lengthIn ?: 0.0).toString()) }
-    var wFt by remember { mutableStateOf((initialRoom?.widthFt ?: 12.0).toString()) }
-    var wIn by remember { mutableStateOf((initialRoom?.widthIn ?: 0.0).toString()) }
-    var hFt by remember { mutableStateOf((initialRoom?.heightFt ?: 10.0).toString()) }
-    var hIn by remember { mutableStateOf((initialRoom?.heightIn ?: 0.0).toString()) }
+    var selectedPreset by remember { mutableStateOf("Bedroom") }
+    var roomName by remember { mutableStateOf("Bedroom") }
+    var lengthFt by remember { mutableStateOf("14") }
+    var lengthIn by remember { mutableStateOf("0") }
+    var widthFt by remember { mutableStateOf("12") }
+    var widthIn by remember { mutableStateOf("0") }
+    var heightFt by remember { mutableStateOf("10") }
+    var heightIn by remember { mutableStateOf("0") }
 
-    var dCount by remember { mutableStateOf((initialRoom?.doorCount ?: 1).toString()) }
-    var dW by remember { mutableStateOf((initialRoom?.doorWidthFt ?: 3.0).toString()) }
-    var dH by remember { mutableStateOf((initialRoom?.doorHeightFt ?: 7.0).toString()) }
-
-    var winCount by remember { mutableStateOf((initialRoom?.windowCount ?: 1).toString()) }
-    var winW by remember { mutableStateOf((initialRoom?.windowWidthFt ?: 4.0).toString()) }
-    var winH by remember { mutableStateOf((initialRoom?.windowHeightFt ?: 4.0).toString()) }
-
-    var extraDeduct by remember { mutableStateOf((initialRoom?.additionalDeductionsSqft ?: 0.0).toString()) }
-    var wallPainting by remember { mutableStateOf(initialRoom?.wallPaintingEnabled ?: true) }
-    var ceilPainting by remember { mutableStateOf(initialRoom?.ceilingPaintingEnabled ?: true) }
-    var notes by remember { mutableStateOf(initialRoom?.notes ?: "") }
+    var wallPaintBrand by remember { mutableStateOf("Asian Paints") }
+    var wallProductType by remember { mutableStateOf("Interior Emulsion") }
+    var ceilingProductType by remember { mutableStateOf("Ceiling White") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initialRoom == null) "Add Room" else "Edit Room", fontWeight = FontWeight.Bold) },
+        title = { Text("Add Room (नया कमरा जोड़ें)", fontWeight = FontWeight.Bold) },
         text = {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item {
+                    Text(text = "Select Room Preset:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        BrandProductRegistry.roomCategories.forEach { preset ->
+                            val isSel = selectedPreset == preset
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSel) PrimaryNavy else Color(0xFFF1F5F9),
+                                modifier = Modifier
+                                    .clickable {
+                                        selectedPreset = preset
+                                        roomName = preset
+                                    }
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSel) PrimaryNavy else Color(0xFFCBD5E1),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                            ) {
+                                Text(
+                                    text = preset,
+                                    color = if (isSel) Color.White else Slate700,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 item {
                     OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Room Name (कमरे का नाम)") },
+                        value = roomName,
+                        onValueChange = { roomName = it },
+                        label = { Text("Room Name / Label") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 }
 
-                // Length & Width
                 item {
-                    Text(text = "Length & Width (Feet & Inches)", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(text = "Dimensions (Feet & Inches / फुट व इंच)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Length Row
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
-                            value = lFt,
-                            onValueChange = { lFt = it },
-                            label = { Text("Length (ft)") },
+                            value = lengthFt,
+                            onValueChange = { lengthFt = it },
+                            label = { Text("Length (Ft)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
-                            value = lIn,
-                            onValueChange = { lIn = it },
-                            label = { Text("Inches") },
+                            value = lengthIn,
+                            onValueChange = { lengthIn = it },
+                            label = { Text("Length (In)") },
+                            placeholder = { Text("0-11") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // Width Row
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
-                            value = wFt,
-                            onValueChange = { wFt = it },
-                            label = { Text("Width (ft)") },
+                            value = widthFt,
+                            onValueChange = { widthFt = it },
+                            label = { Text("Width (Ft)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
-                            value = wIn,
-                            onValueChange = { wIn = it },
-                            label = { Text("Inches") },
+                            value = widthIn,
+                            onValueChange = { widthIn = it },
+                            label = { Text("Width (In)") },
+                            placeholder = { Text("0-11") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // Height Row
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = heightFt,
+                            onValueChange = { heightFt = it },
+                            label = { Text("Height (Ft)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = heightIn,
+                            onValueChange = { heightIn = it },
+                            label = { Text("Height (In)") },
+                            placeholder = { Text("0-11") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
 
-                // Height
                 item {
-                    Text(text = "Height (ऊंचाई)", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
+                    Text(text = "Default Paints for Wall & Ceiling", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedTextField(
-                            value = hFt,
-                            onValueChange = { hFt = it },
-                            label = { Text("Height (ft)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            value = wallProductType,
+                            onValueChange = { wallProductType = it },
+                            label = { Text("Wall Paint") },
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
-                            value = hIn,
-                            onValueChange = { hIn = it },
-                            label = { Text("Inches") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            value = ceilingProductType,
+                            onValueChange = { ceilingProductType = it },
+                            label = { Text("Ceiling Paint") },
                             modifier = Modifier.weight(1f)
                         )
-                    }
-                }
-
-                // Doors & Windows
-                item {
-                    Text(text = "Doors & Windows Openings", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = dCount,
-                            onValueChange = { dCount = it },
-                            label = { Text("Doors") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = dW,
-                            onValueChange = { dW = it },
-                            label = { Text("Door W (ft)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = dH,
-                            onValueChange = { dH = it },
-                            label = { Text("Door H (ft)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = winCount,
-                            onValueChange = { winCount = it },
-                            label = { Text("Windows") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = winW,
-                            onValueChange = { winW = it },
-                            label = { Text("Win W (ft)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = winH,
-                            onValueChange = { winH = it },
-                            label = { Text("Win H (ft)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                // Deductions & Checkboxes
-                item {
-                    OutlinedTextField(
-                        value = extraDeduct,
-                        onValueChange = { extraDeduct = it },
-                        label = { Text("Extra Deductions (Sqft - e.g. Tiles)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = wallPainting,
-                            onCheckedChange = { wallPainting = it },
-                            colors = CheckboxDefaults.colors(checkedColor = PrimaryNavy)
-                        )
-                        Text(text = "Paint Walls (दीवारें)", fontSize = 13.sp)
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Checkbox(
-                            checked = ceilPainting,
-                            onCheckedChange = { ceilPainting = it },
-                            colors = CheckboxDefaults.colors(checkedColor = PrimaryNavy)
-                        )
-                        Text(text = "Paint Ceiling (छत)", fontSize = 13.sp)
                     }
                 }
             }
@@ -704,35 +680,112 @@ private fun RoomFormDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(
-                        name.ifBlank { "Room" },
-                        lFt.toDoubleOrNull() ?: 12.0,
-                        lIn.toDoubleOrNull() ?: 0.0,
-                        wFt.toDoubleOrNull() ?: 10.0,
-                        wIn.toDoubleOrNull() ?: 0.0,
-                        hFt.toDoubleOrNull() ?: 10.0,
-                        hIn.toDoubleOrNull() ?: 0.0,
-                        dCount.toIntOrNull() ?: 1,
-                        dW.toDoubleOrNull() ?: 3.0,
-                        dH.toDoubleOrNull() ?: 7.0,
-                        winCount.toIntOrNull() ?: 1,
-                        winW.toDoubleOrNull() ?: 4.0,
-                        winH.toDoubleOrNull() ?: 4.0,
-                        extraDeduct.toDoubleOrNull() ?: 0.0,
-                        wallPainting,
-                        ceilPainting,
-                        notes
+                    val lF = lengthFt.toDoubleOrNull() ?: 14.0
+                    val lI = lengthIn.toDoubleOrNull() ?: 0.0
+                    val wF = widthFt.toDoubleOrNull() ?: 12.0
+                    val wI = widthIn.toDoubleOrNull() ?: 0.0
+                    val hF = heightFt.toDoubleOrNull() ?: 10.0
+                    val hI = heightIn.toDoubleOrNull() ?: 0.0
+
+                    val wallEntries = listOf(
+                        WallMeasurementEntry(label = "Wall 1 & 2 (Length sides)", lengthFt = lF, lengthIn = lI, heightFt = hF, heightIn = hI, wallCount = 2),
+                        WallMeasurementEntry(label = "Wall 3 & 4 (Width sides)", lengthFt = wF, lengthIn = wI, heightFt = hF, heightIn = hI, wallCount = 2)
                     )
+                    val wallDeductions = listOf(
+                        WallDeductionEntry(name = "Door", lengthFt = 3.0, lengthIn = 0.0, heightFt = 7.0, heightIn = 0.0, count = 1),
+                        WallDeductionEntry(name = "Window", lengthFt = 4.0, lengthIn = 0.0, heightFt = 4.0, heightIn = 0.0, count = 1)
+                    )
+                    val ceilingEntries = listOf(
+                        CeilingMeasurementEntry(label = "Ceiling Area", lengthFt = lF, lengthIn = lI, widthFt = wF, widthIn = wI)
+                    )
+
+                    val serialized = RoomDetailsJsonConverter.serialize(
+                        wallEntries = wallEntries,
+                        wallDeductions = wallDeductions,
+                        wallPaint = SurfacePaintConfig(
+                            brand = wallPaintBrand,
+                            productType = wallProductType,
+                            productVariant = "",
+                            coats = 2,
+                            materialRate = 16.0,
+                            labourRate = 12.0
+                        ),
+                        wallPutty = SurfacePrepConfig(
+                            enabled = true,
+                            title = "Wall Putty",
+                            brand = "Birla White",
+                            product = "WallCare Putty",
+                            coats = 2,
+                            materialRate = 7.0,
+                            labourRate = 9.0
+                        ),
+                        wallPrimer = SurfacePrepConfig(
+                            enabled = true,
+                            title = "Wall Primer",
+                            brand = "Asian Paints",
+                            product = "Decoprime Wall Primer",
+                            coats = 1,
+                            materialRate = 4.5,
+                            labourRate = 4.0
+                        ),
+                        ceilingEntries = ceilingEntries,
+                        ceilingDeductions = emptyList(),
+                        ceilingPaint = SurfacePaintConfig(
+                            brand = wallPaintBrand,
+                            productType = ceilingProductType,
+                            productVariant = "",
+                            coats = 2,
+                            materialRate = 12.0,
+                            labourRate = 10.0
+                        ),
+                        ceilingPutty = SurfacePrepConfig(
+                            enabled = false,
+                            title = "Ceiling Putty",
+                            brand = "Birla White",
+                            product = "WallCare Putty",
+                            coats = 2,
+                            materialRate = 7.0,
+                            labourRate = 9.0
+                        ),
+                        ceilingPrimer = SurfacePrepConfig(
+                            enabled = true,
+                            title = "Ceiling Primer",
+                            brand = "Asian Paints",
+                            product = "Decoprime Wall Primer",
+                            coats = 1,
+                            materialRate = 4.5,
+                            labourRate = 4.0
+                        )
+                    )
+
+                    val newRoom = RoomMeasurementEntity(
+                        projectId = 0L,
+                        roomName = roomName.ifBlank { "Bedroom" },
+                        lengthFt = lF,
+                        lengthIn = lI,
+                        widthFt = wF,
+                        widthIn = wI,
+                        heightFt = hF,
+                        heightIn = hI,
+                        doorCount = 1,
+                        doorWidthFt = 3.0,
+                        doorHeightFt = 7.0,
+                        windowCount = 1,
+                        windowWidthFt = 4.0,
+                        windowHeightFt = 4.0,
+                        wallPaintingEnabled = true,
+                        ceilingPaintingEnabled = true,
+                        detailedData = serialized
+                    )
+                    onSave(newRoom)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryNavy)
             ) {
-                Text("Save Room")
+                Text("Add Room")
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
