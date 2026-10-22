@@ -42,7 +42,8 @@ enum class AppScreen {
     COLOR_PALETTE,
     LABOUR_ATTENDANCE,
     SITE_PROGRESS,
-    WARRANTY_CERTIFICATE
+    WARRANTY_CERTIFICATE,
+    WOOD_POLISH_CALCULATOR
 }
 
 class PaintingViewModel(application: Application) : AndroidViewModel(application) {
@@ -79,6 +80,9 @@ class PaintingViewModel(application: Application) : AndroidViewModel(application
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val siteProgress: StateFlow<com.example.data.model.SiteProgressEntity?>
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val woodPolishItems: StateFlow<List<com.example.data.model.WoodPolishEntity>>
 
     init {
         val database = AppDatabase.getDatabase(application)
@@ -131,6 +135,14 @@ class PaintingViewModel(application: Application) : AndroidViewModel(application
                 flowOf(null)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+        woodPolishItems = _selectedProjectId.flatMapLatest { id ->
+            if (id != null) {
+                repository.getWoodPolishByProject(id)
+            } else {
+                flowOf(emptyList())
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
         viewModelScope.launch {
             repository.initializeDefaultDataIfNeeded()
@@ -566,4 +578,45 @@ class PaintingViewModel(application: Application) : AndroidViewModel(application
             repository.saveSiteProgress(progress)
         }
     }
+
+    // Business Profile & Settings
+    private val businessSettingsManager: com.example.util.BusinessSettingsManager =
+        com.example.util.BusinessSettingsManager.getInstance(application)
+
+    val businessProfile: StateFlow<com.example.data.model.BusinessProfile> =
+        businessSettingsManager.businessProfile
+
+    fun updateBusinessProfile(profile: com.example.data.model.BusinessProfile) {
+        businessSettingsManager.saveProfile(profile)
+    }
+
+    fun resetBusinessProfile() {
+        businessSettingsManager.resetToDefaults()
+    }
+
+    // Wood Polish operations
+    fun saveWoodPolishItem(item: com.example.data.model.WoodPolishEntity) {
+        viewModelScope.launch {
+            repository.saveWoodPolishItem(item)
+        }
+    }
+
+    fun deleteWoodPolishItem(item: com.example.data.model.WoodPolishEntity) {
+        viewModelScope.launch {
+            repository.deleteWoodPolishItem(item)
+        }
+    }
+
+    fun deleteWoodPolishItemById(id: Long) {
+        viewModelScope.launch {
+            repository.deleteWoodPolishItemById(id)
+        }
+    }
+
+    fun duplicateWoodPolishItem(item: com.example.data.model.WoodPolishEntity) {
+        viewModelScope.launch {
+            repository.duplicateWoodPolishItem(item)
+        }
+    }
 }
+

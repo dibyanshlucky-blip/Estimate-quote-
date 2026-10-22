@@ -67,10 +67,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import com.example.data.model.BusinessProfile
+
 @Composable
 fun PaymentScreen(
     language: AppLanguage,
     projectDetails: ProjectWithDetails?,
+    businessProfile: BusinessProfile? = null,
     onAddPayment: (amount: Double, date: String, method: String, ref: String, remarks: String) -> Unit,
     onDeletePayment: (Long) -> Unit
 ) {
@@ -165,7 +168,9 @@ fun PaymentScreen(
             item {
                 Button(
                     onClick = {
-                        val text = "PAYMENT RECEIPT - DIVYANSH ENTERPRISES\nClient: ${project?.customerName ?: ""}\nSite: ${project?.siteName ?: ""}\nEstimate Total: ${CurrencyUtils.formatInr(quotationAmount)}\nTotal Paid: ${CurrencyUtils.formatInr(totalPaid)}\nOutstanding Balance: ${CurrencyUtils.formatInr(balanceDue)}\nThank you for choosing Divyansh Enterprises!"
+                        val bName = businessProfile?.businessName ?: "Divyansh Enterprises"
+                        val bPhone = businessProfile?.phone ?: "+91 98234 56789"
+                        val text = "PAYMENT RECEIPT - ${bName.uppercase()}\nClient: ${project?.customerName ?: ""}\nSite: ${project?.siteName ?: ""}\nEstimate Total: ${CurrencyUtils.formatInr(quotationAmount)}\nTotal Paid: ${CurrencyUtils.formatInr(totalPaid)}\nOutstanding Balance: ${CurrencyUtils.formatInr(balanceDue)}\nThank you for choosing $bName!\nContact: $bPhone"
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, text)

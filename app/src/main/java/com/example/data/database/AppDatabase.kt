@@ -13,6 +13,7 @@ import com.example.data.model.PaymentEntity
 import com.example.data.model.ProjectEntity
 import com.example.data.model.RoomMeasurementEntity
 import com.example.data.model.SiteProgressEntity
+import com.example.data.model.WoodPolishEntity
 import com.example.data.model.WorkerEntity
 
 @Database(
@@ -25,9 +26,10 @@ import com.example.data.model.WorkerEntity
         PaymentEntity::class,
         WorkerEntity::class,
         AttendanceRecordEntity::class,
-        SiteProgressEntity::class
+        SiteProgressEntity::class,
+        WoodPolishEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

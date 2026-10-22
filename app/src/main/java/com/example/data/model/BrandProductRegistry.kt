@@ -31,29 +31,31 @@ object BrandProductRegistry {
     )
 
     val wallProductTypes = listOf(
-        "OBD (Oil Bound Distemper)",
-        "Distemper",
-        "Interior Primer",
-        "Interior Emulsion",
-        "Tractor Emulsion",
-        "Apcolite Premium Emulsion",
-        "Royale",
-        "Royale Luxury",
-        "Royale Glitz",
-        "Wall Putty",
-        "Texture Paint",
-        "Luster Paint",
-        "Exterior Paint",
-        "Other"
-    )
-
-    val ceilingProductTypes = listOf(
-        "Ceiling White",
-        "Interior Primer",
         "Distemper",
         "Interior Emulsion",
         "Premium Emulsion",
-        "Other"
+        "Luxury Emulsion",
+        "Primer",
+        "Putty",
+        "Texture Paint",
+        "Exterior Paint",
+        "OBD (Oil Bound Distemper)",
+        "Tractor Emulsion",
+        "Royale Luxury",
+        "Luster Paint",
+        "Other / Custom"
+    )
+
+    val ceilingProductTypes = listOf(
+        "Distemper",
+        "Interior Emulsion",
+        "Premium Emulsion",
+        "Luxury Emulsion",
+        "Primer",
+        "Putty",
+        "Ceiling White",
+        "Texture Paint",
+        "Other / Custom"
     )
 
     val roomCategories = listOf(

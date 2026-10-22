@@ -62,12 +62,14 @@ import com.example.ui.theme.TealSuccess
 import com.example.util.AppLanguage
 import com.example.util.CurrencyUtils
 import com.example.util.LanguageManager
+import com.example.data.model.BusinessProfile
 import com.example.util.PdfGenerator
 
 @Composable
 fun PdfQuotationScreen(
     language: AppLanguage,
-    projectDetails: ProjectWithDetails?
+    projectDetails: ProjectWithDetails?,
+    businessProfile: BusinessProfile? = null
 ) {
     val context = LocalContext.current
     var selectedFormat by remember { mutableStateOf(if (projectDetails?.project?.estimateMode == "LABOUR_ONLY") 1 else 0) } // 0: Material+Labour, 1: Labour Only
@@ -138,8 +140,10 @@ fun PdfQuotationScreen(
                     onClick = {
                         if (projectDetails != null) {
                             val proj = projectDetails.project
-                            val pdfFile = PdfGenerator.generateQuotationPdf(context, projectDetails, isLabourOnly)
-                            val summary = "Hello ${proj.customerName}, please find attached quotation ${proj.estimateNumber} from Divyansh Enterprises for ${proj.siteName}. Total: ${CurrencyUtils.formatInr(grandTotal)}. Contact: +91 98234 56789."
+                            val pdfFile = PdfGenerator.generateQuotationPdf(context, projectDetails, isLabourOnly, businessProfile)
+                            val bName = businessProfile?.businessName ?: "Divyansh Enterprises"
+                            val bPhone = businessProfile?.phone ?: "+91 98234 56789"
+                            val summary = "Hello ${proj.customerName}, please find attached quotation ${proj.estimateNumber} from $bName for ${proj.siteName}. Total: ${CurrencyUtils.formatInr(grandTotal)}. Contact: $bPhone."
                             PdfGenerator.sharePdfViaWhatsApp(context, pdfFile, proj.mobileNumber, summary)
                         }
                     },
@@ -158,7 +162,7 @@ fun PdfQuotationScreen(
                     onClick = {
                         if (projectDetails != null) {
                             val proj = projectDetails.project
-                            val pdfFile = PdfGenerator.generateQuotationPdf(context, projectDetails, isLabourOnly)
+                            val pdfFile = PdfGenerator.generateQuotationPdf(context, projectDetails, isLabourOnly, businessProfile)
                             PdfGenerator.printPdf(context, pdfFile, "Quotation_${proj.estimateNumber}")
                         }
                     },
@@ -192,18 +196,21 @@ fun PdfQuotationScreen(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = "DIVYANSH ENTERPRISES",
+                                text = (businessProfile?.businessName ?: "DIVYANSH ENTERPRISES").uppercase(),
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color.White,
                                 fontSize = 16.sp
                             )
                             Text(
-                                text = "Painting Contractor • Surface Protection & Decorative Finishes",
+                                text = if (businessProfile?.tagline?.isNotBlank() == true) businessProfile.tagline else "Painting Contractor • Surface Protection & Decorative Finishes",
                                 color = AccentGold,
                                 fontSize = 11.sp
                             )
+                            val owner = businessProfile?.ownerName ?: "Abhimanyu Kumar"
+                            val city = businessProfile?.city ?: "Kharadi, Pune"
+                            val phone = businessProfile?.phone ?: "+91 98234 56789"
                             Text(
-                                text = "Abhimanyu Kumar | Kharadi, Pune, Maharashtra | Ph: +91 98234 56789",
+                                text = "$owner | $city | Ph: $phone",
                                 color = Color.White.copy(alpha = 0.9f),
                                 fontSize = 10.sp
                             )
@@ -316,7 +323,11 @@ fun PdfQuotationScreen(
                             ) {
                                 Column(modifier = Modifier.weight(2f)) {
                                     Text(text = "Wall: ${details.wallPaint.brand} (${details.wallPaint.productType})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(text = "${details.wallPaint.coats} Coats • ₹${details.wallPaint.getEffectiveRate(isLabourOnly)}/sq.ft", fontSize = 9.5.sp, color = Color(0xFF1D4ED8))
+                                    val customWallCoeffs = details.wallEntries.filter { it.multiplier != 1.0 }
+                                    val coeffInfo = if (customWallCoeffs.isNotEmpty()) {
+                                        " • Coeffs: " + customWallCoeffs.joinToString(", ") { "${it.label}: ×${String.format(java.util.Locale.US, "%.2f", it.multiplier)}" }
+                                    } else ""
+                                    Text(text = "${details.wallPaint.coats} Coats • ₹${details.wallPaint.getEffectiveRate(isLabourOnly)}/sq.ft$coeffInfo", fontSize = 9.5.sp, color = Color(0xFF1D4ED8))
                                 }
                                 Text(
                                     text = "${CurrencyUtils.formatSqft(room.grossWallAreaSqft)} − ${CurrencyUtils.formatSqft(room.totalDeductionsSqft)} = ${CurrencyUtils.formatSqft(netWall)}",
@@ -530,8 +541,10 @@ fun PdfQuotationScreen(
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(text = "________________________", color = Slate500, fontSize = 10.sp)
-                            Text(text = "For Divyansh Enterprises", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryNavy)
-                            Text(text = "(Abhimanyu Kumar)", fontSize = 9.sp, color = Slate500)
+                            val bName = businessProfile?.businessName ?: "Divyansh Enterprises"
+                            val oName = businessProfile?.ownerName ?: "Abhimanyu Kumar"
+                            Text(text = "For $bName", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryNavy)
+                            Text(text = "($oName)", fontSize = 9.sp, color = Slate500)
                         }
                     }
                 }

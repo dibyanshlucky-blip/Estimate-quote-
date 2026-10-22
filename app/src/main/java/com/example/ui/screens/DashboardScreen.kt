@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Badge
@@ -69,6 +70,8 @@ import com.example.util.CurrencyUtils
 import com.example.util.LanguageManager
 import com.example.viewmodel.AppScreen
 
+import com.example.data.model.BusinessProfile
+
 data class DashboardItem(
     val id: Int,
     val titleKey: String,
@@ -82,6 +85,7 @@ data class DashboardItem(
 @Composable
 fun DashboardScreen(
     language: AppLanguage,
+    businessProfile: BusinessProfile? = null,
     allProjects: List<ProjectEntity>,
     activeProjectDetails: ProjectWithDetails?,
     onNavigate: (AppScreen) -> Unit,
@@ -92,26 +96,27 @@ fun DashboardScreen(
     val pendingQuotesCount = allProjects.count { it.status == "Draft" || it.status == "Sent" }
     val acceptedQuotesCount = allProjects.count { it.status == "Accepted" || it.status == "Completed" }
 
-    // Dashboard Items (12 Cards requested in project specification)
+    // Dashboard Items
     val dashboardCards = listOf(
         DashboardItem(1, "new_estimate", "Create fresh site quote", Icons.Default.AddCircle, AppScreen.CUSTOMER_SITE, PrimaryNavy, "card_new_estimate"),
-        DashboardItem(2, "room_measurements", "L x W x H & Deductions", Icons.Default.MeetingRoom, AppScreen.ROOM_CALCULATOR, PrimaryBlue, "card_room_calc"),
-        DashboardItem(3, "direct_sqft", "Quick area entry", Icons.Default.SquareFoot, AppScreen.DIRECT_CALCULATOR, Color(0xFF0284C7), "card_direct_sqft"),
-        DashboardItem(4, "customer_mgmt", "Client, site & photos", Icons.Default.Handshake, AppScreen.CUSTOMER_SITE, Color(0xFF0D9488), "card_customer_mgmt"),
-        DashboardItem(5, "saved_projects", "All estimates & sites", Icons.Default.ReceiptLong, AppScreen.SAVED_PROJECTS, Color(0xFF4F46E5), "card_saved_projects"),
-        DashboardItem(6, "rate_list", "Pune & Kharadi rates", Icons.Default.PriceChange, AppScreen.CATALOGUE, AccentGold, "card_rate_list"),
-        DashboardItem(7, "material_labour", "Complete painting quote", Icons.Default.FormatPaint, AppScreen.ESTIMATE_BUILDER, Color(0xFFD97706), "card_mat_labour"),
-        DashboardItem(8, "labour_only", "Painter work charges", Icons.Default.Calculate, AppScreen.ESTIMATE_BUILDER, Color(0xFFEA580C), "card_labour_only"),
-        DashboardItem(9, "pdf_quotations", "Print & WhatsApp A4", Icons.Default.PictureAsPdf, AppScreen.PDF_QUOTATION, Color(0xFFDC2626), "card_pdf_quotes"),
-        DashboardItem(10, "payments_balance", "Advance & stage ledger", Icons.Default.Payments, AppScreen.PAYMENTS, TealSuccess, "card_payments"),
-        DashboardItem(11, "reports", "Revenue & summary", Icons.Default.Assessment, AppScreen.REPORTS, Color(0xFF7C3AED), "card_reports"),
-        DashboardItem(12, "settings_backup", "JSON & CSV export", Icons.Default.Settings, AppScreen.SETTINGS_BACKUP, Slate700, "card_settings"),
-        DashboardItem(13, "material_calc", "Litres & Putty Bags", Icons.Default.ShoppingCart, AppScreen.MATERIAL_CALCULATOR, Color(0xFF0284C7), "card_material_calc"),
-        DashboardItem(14, "color_palette", "Asian Paints & Berger", Icons.Default.Palette, AppScreen.COLOR_PALETTE, Color(0xFF8B5CF6), "card_color_palette"),
-        DashboardItem(15, "labour_attendance", "Daily Karigar Wages", Icons.Default.Badge, AppScreen.LABOUR_ATTENDANCE, TealSuccess, "card_labour_attendance"),
-        DashboardItem(16, "site_progress", "5-Phase Work Status", Icons.Default.Timeline, AppScreen.SITE_PROGRESS, Color(0xFFD97706), "card_site_progress"),
-        DashboardItem(17, "warranty_cert", "Completion Guarantee", Icons.Default.Verified, AppScreen.WARRANTY_CERTIFICATE, Color(0xFFB45309), "card_warranty_cert")
-    )
+        DashboardItem(18, "woodwork_polish", "woodwork_polish_desc", Icons.Default.MeetingRoom, AppScreen.WOOD_POLISH_CALCULATOR, Color(0xFF92400E), "card_wood_polish"),
+    DashboardItem(2, "room_measurements", "L x W x H & Deductions", Icons.Default.MeetingRoom, AppScreen.ROOM_CALCULATOR, PrimaryBlue, "card_room_calc"),
+    DashboardItem(3, "direct_sqft", "Quick area entry", Icons.Default.SquareFoot, AppScreen.DIRECT_CALCULATOR, Color(0xFF0284C7), "card_direct_sqft"),
+    DashboardItem(4, "customer_mgmt", "Client, site & photos", Icons.Default.Handshake, AppScreen.CUSTOMER_SITE, Color(0xFF0D9488), "card_customer_mgmt"),
+    DashboardItem(5, "saved_projects", "All estimates & sites", Icons.Default.ReceiptLong, AppScreen.SAVED_PROJECTS, Color(0xFF4F46E5), "card_saved_projects"),
+    DashboardItem(6, "rate_list", "Pune & Kharadi rates", Icons.Default.PriceChange, AppScreen.CATALOGUE, AccentGold, "card_rate_list"),
+    DashboardItem(7, "material_labour", "Complete painting quote", Icons.Default.FormatPaint, AppScreen.ESTIMATE_BUILDER, Color(0xFFD97706), "card_mat_labour"),
+    DashboardItem(8, "labour_only", "Painter work charges", Icons.Default.Calculate, AppScreen.ESTIMATE_BUILDER, Color(0xFFEA580C), "card_labour_only"),
+    DashboardItem(9, "pdf_quotations", "Print & WhatsApp A4", Icons.Default.PictureAsPdf, AppScreen.PDF_QUOTATION, Color(0xFFDC2626), "card_pdf_quotes"),
+    DashboardItem(10, "payments_balance", "Advance & stage ledger", Icons.Default.Payments, AppScreen.PAYMENTS, TealSuccess, "card_payments"),
+    DashboardItem(11, "reports", "Revenue & summary", Icons.Default.Assessment, AppScreen.REPORTS, Color(0xFF7C3AED), "card_reports"),
+    DashboardItem(12, "settings_backup", "JSON & CSV export", Icons.Default.Settings, AppScreen.SETTINGS_BACKUP, Slate700, "card_settings"),
+    DashboardItem(13, "material_calc", "Litres & Putty Bags", Icons.Default.ShoppingCart, AppScreen.MATERIAL_CALCULATOR, Color(0xFF0284C7), "card_material_calc"),
+    DashboardItem(14, "color_palette", "Asian Paints & Berger", Icons.Default.Palette, AppScreen.COLOR_PALETTE, Color(0xFF8B5CF6), "card_color_palette"),
+    DashboardItem(15, "labour_attendance", "Daily Karigar Wages", Icons.Default.Badge, AppScreen.LABOUR_ATTENDANCE, TealSuccess, "card_labour_attendance"),
+    DashboardItem(16, "site_progress", "5-Phase Work Status", Icons.Default.Timeline, AppScreen.SITE_PROGRESS, Color(0xFFD97706), "card_site_progress"),
+    DashboardItem(17, "warranty_cert", "Completion Guarantee", Icons.Default.Verified, AppScreen.WARRANTY_CERTIFICATE, Color(0xFFB45309), "card_warranty_cert")
+)
 
     LazyColumn(
         modifier = Modifier
@@ -133,30 +138,44 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
-                            text = LanguageManager.get("app_title", language),
+                            text = businessProfile?.businessName ?: LanguageManager.get("app_title", language),
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
                             color = PrimaryNavy
                         )
                         Text(
-                            text = "${LanguageManager.get("contractor_name", language)} • Kharadi, Pune",
+                            text = "${businessProfile?.ownerName ?: LanguageManager.get("contractor_name", language)} • ${businessProfile?.city ?: "Kharadi, Pune"}",
                             fontSize = 12.sp,
                             color = Slate500
                         )
                     }
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFEFF6FF)
+                        color = Color(0xFFEFF6FF),
+                        modifier = Modifier.testTag("chip_business_settings_status")
                     ) {
-                        Text(
-                            text = "Offline Mode Active",
-                            color = PrimaryBlue,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Business Settings",
+                                tint = PrimaryBlue,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Settings",
+                                color = PrimaryBlue,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
@@ -311,9 +330,87 @@ fun DashboardScreen(
             }
         }
 
-        // Section Title: 12 Cards Grid
+        // Dedicated Woodwork & Polish Measurement Module Hero Banner
         item {
-            Padding(16.dp, 12.dp, 16.dp, 8.dp) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .clickable { onNavigate(AppScreen.WOOD_POLISH_CALCULATOR) }
+                    .testTag("banner_woodwork_polish"),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF78350F)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFFDE68A),
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.MeetingRoom,
+                                    contentDescription = null,
+                                    tint = Color(0xFF78350F),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = LanguageManager.get("woodwork_polish", language),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFFF59E0B)
+                                ) {
+                                    Text(
+                                        text = "NEW",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Door • Window • Interior Polish (Ft & In, Multiplier, +/-)",
+                                fontSize = 11.sp,
+                                color = Color(0xFFFDE68A)
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Open",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        // Section Title: Application Modules
+        item {
+            Padding(16.dp, 10.dp, 16.dp, 6.dp) {
                 Text(
                     text = "APPLICATION MODULES",
                     style = MaterialTheme.typography.labelSmall.copy(

@@ -30,6 +30,7 @@ import com.example.ui.screens.SavedProjectsScreen
 import com.example.ui.screens.SettingsBackupScreen
 import com.example.ui.screens.SiteProgressScreen
 import com.example.ui.screens.WarrantyCertificateScreen
+import com.example.ui.screens.WoodPolishCalculatorScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.util.LanguageManager
 import com.example.viewmodel.AppScreen
@@ -58,6 +59,7 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
     val allWorkers by viewModel.allWorkers.collectAsStateWithLifecycle()
     val projectAttendance by viewModel.projectAttendance.collectAsStateWithLifecycle()
     val siteProgress by viewModel.siteProgress.collectAsStateWithLifecycle()
+    val businessProfile by viewModel.businessProfile.collectAsStateWithLifecycle()
 
     // Handle Android system back button
     BackHandler(enabled = currentScreen != AppScreen.DASHBOARD) {
@@ -81,6 +83,7 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
         AppScreen.LABOUR_ATTENDANCE -> LanguageManager.get("labour_attendance", language)
         AppScreen.SITE_PROGRESS -> LanguageManager.get("site_progress", language)
         AppScreen.WARRANTY_CERTIFICATE -> LanguageManager.get("warranty_cert", language)
+        AppScreen.WOOD_POLISH_CALCULATOR -> LanguageManager.get("woodwork_polish", language)
     }
 
     val screenSubtitle = when (currentScreen) {
@@ -113,6 +116,7 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
                 AppScreen.DASHBOARD -> {
                     DashboardScreen(
                         language = language,
+                        businessProfile = businessProfile,
                         allProjects = allProjects,
                         activeProjectDetails = activeProjectDetails,
                         onNavigate = { screen -> viewModel.navigateTo(screen) },
@@ -212,7 +216,8 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
                 AppScreen.PDF_QUOTATION -> {
                     PdfQuotationScreen(
                         language = language,
-                        projectDetails = activeProjectDetails
+                        projectDetails = activeProjectDetails,
+                        businessProfile = businessProfile
                     )
                 }
 
@@ -220,6 +225,7 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
                     PaymentScreen(
                         language = language,
                         projectDetails = activeProjectDetails,
+                        businessProfile = businessProfile,
                         onAddPayment = { amt, date, method, ref, remarks ->
                             viewModel.addPayment(amt, date, method, ref, remarks)
                         },
@@ -261,10 +267,13 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
                 AppScreen.SETTINGS_BACKUP -> {
                     SettingsBackupScreen(
                         language = language,
+                        businessProfile = businessProfile,
                         allProjects = allProjects,
                         activeProjectDetails = activeProjectDetails,
                         allCatalogueItems = catalogueItems,
                         allPayments = allPayments,
+                        onUpdateBusinessProfile = { updated -> viewModel.updateBusinessProfile(updated) },
+                        onResetBusinessProfile = { viewModel.resetBusinessProfile() },
                         onResetCatalogue = { viewModel.resetCatalogue() }
                     )
                 }
@@ -311,7 +320,19 @@ fun PaintingApp(viewModel: PaintingViewModel = viewModel()) {
                 AppScreen.WARRANTY_CERTIFICATE -> {
                     WarrantyCertificateScreen(
                         language = language,
-                        projectDetails = activeProjectDetails
+                        projectDetails = activeProjectDetails,
+                        businessProfile = businessProfile
+                    )
+                }
+
+                AppScreen.WOOD_POLISH_CALCULATOR -> {
+                    WoodPolishCalculatorScreen(
+                        language = language,
+                        projectDetails = activeProjectDetails,
+                        businessProfile = businessProfile,
+                        onSaveItem = { item -> viewModel.saveWoodPolishItem(item) },
+                        onDeleteItem = { item -> viewModel.deleteWoodPolishItem(item) },
+                        onDuplicateItem = { item -> viewModel.duplicateWoodPolishItem(item) }
                     )
                 }
             }

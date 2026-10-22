@@ -57,10 +57,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import com.example.data.model.BusinessProfile
+
 @Composable
 fun WarrantyCertificateScreen(
     language: AppLanguage,
-    projectDetails: ProjectWithDetails?
+    projectDetails: ProjectWithDetails?,
+    businessProfile: BusinessProfile? = null
 ) {
     val context = LocalContext.current
     val project = projectDetails?.project
@@ -122,7 +125,12 @@ fun WarrantyCertificateScreen(
         item {
             Button(
                 onClick = {
-                    val msg = "★ CERTIFICATE OF COMPLETION & SERVICE WARRANTY ★\nDivyansh Enterprises - Painting Contractors\nKharadi, Pune, Maharashtra\n\nThis certifies that the painting work at:\nSite: ${project?.siteName ?: "Site"}\nAddress: ${project?.siteAddress ?: "Kharadi, Pune"}\nCustomer: ${project?.customerName ?: "Customer"}\n\nhas been completed successfully on $completionDate under the supervision of Abhimanyu Kumar.\n\nWarranty Coverage: $warrantyYears-Year Workmanship Warranty (Valid until $expiryDate).\nCovers paint flaking, bubbling, or improper adhesion.\n\nAuthorized Signatory:\nAbhimanyu Kumar, Divyansh Enterprises\nPhone: +91 98234 56789"
+                    val bName = businessProfile?.businessName ?: "Divyansh Enterprises"
+                    val bOwner = businessProfile?.ownerName ?: "Abhimanyu Kumar"
+                    val bCity = businessProfile?.city ?: "Kharadi, Pune"
+                    val bState = businessProfile?.state ?: "Maharashtra"
+                    val bPhone = businessProfile?.phone ?: "+91 98234 56789"
+                    val msg = "★ CERTIFICATE OF COMPLETION & SERVICE WARRANTY ★\n$bName - Painting Contractors\n$bCity, $bState\n\nThis certifies that the painting work at:\nSite: ${project?.siteName ?: "Site"}\nAddress: ${project?.siteAddress ?: "$bCity"}\nCustomer: ${project?.customerName ?: "Customer"}\n\nhas been completed successfully on $completionDate under the supervision of $bOwner.\n\nWarranty Coverage: $warrantyYears-Year Workmanship Warranty (Valid until $expiryDate).\nCovers paint flaking, bubbling, or improper adhesion.\n\nAuthorized Signatory:\n$bOwner, $bName\nPhone: $bPhone"
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, msg)
@@ -165,14 +173,17 @@ fun WarrantyCertificateScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "DIVYANSH ENTERPRISES",
+                        text = (businessProfile?.businessName ?: "DIVYANSH ENTERPRISES").uppercase(),
                         fontWeight = FontWeight.ExtraBold,
                         color = PrimaryNavy,
                         fontSize = 18.sp,
                         letterSpacing = 1.sp
                     )
+                    val ownerStr = businessProfile?.ownerName ?: "Abhimanyu Kumar"
+                    val cityStr = businessProfile?.city ?: "Kharadi, Pune"
+                    val phoneStr = businessProfile?.phone ?: "+91 98234 56789"
                     Text(
-                        text = "Kharadi, Pune, Maharashtra • Ph: +91 98234 56789",
+                        text = "$cityStr • Ph: $phoneStr",
                         fontSize = 11.sp,
                         color = Slate500
                     )
@@ -251,8 +262,10 @@ fun WarrantyCertificateScreen(
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = "Abhimanyu Kumar", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = PrimaryNavy)
-                            Text(text = "For Divyansh Enterprises", fontSize = 10.5.sp, color = Slate500)
+                            val signOwner = businessProfile?.ownerName ?: "Abhimanyu Kumar"
+                            val signBusiness = businessProfile?.businessName ?: "Divyansh Enterprises"
+                            Text(text = signOwner, fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = PrimaryNavy)
+                            Text(text = "For $signBusiness", fontSize = 10.5.sp, color = Slate500)
                         }
                     }
                 }

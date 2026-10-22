@@ -17,24 +17,29 @@ import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.example.data.model.AdjustmentUnit
 import com.example.data.model.ProjectWithDetails
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 
+import com.example.data.model.BusinessProfile
+
 object PdfGenerator {
 
     /**
-     * Generates a professional multi-page A4 quotation PDF for Divyansh Enterprises.
+     * Generates a professional multi-page A4 quotation PDF for Divyansh Enterprises / configured business profile.
      * Includes separate Wall and Ceiling measurement rows, gross area, deductions, net area,
      * paint brand, product name, number of coats, rates, putty/primer, totals, and signature block.
      */
     fun generateQuotationPdf(
         context: Context,
         projectDetails: ProjectWithDetails,
-        isLabourOnly: Boolean
+        isLabourOnly: Boolean,
+        businessProfile: BusinessProfile? = null
     ): File {
+        val profile = businessProfile ?: BusinessSettingsManager.getInstance(context).loadProfile()
         val pdfDocument = PdfDocument()
         val pageWidth = 595 // Standard A4 width in points
         val pageHeight = 842 // Standard A4 height in points
@@ -71,12 +76,14 @@ object PdfGenerator {
             titlePaint.color = Color.WHITE
             titlePaint.textSize = 20f
             titlePaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            c.drawText("DIVYANSH ENTERPRISES", 30f, 34f, titlePaint)
+            c.drawText(profile.businessName.uppercase(), 30f, 34f, titlePaint)
 
             smallPaint.color = Color.rgb(254, 243, 199)
             smallPaint.textSize = 10f
-            c.drawText("Painting Contractor • Surface Protection & Decorative Finishes", 30f, 48f, smallPaint)
-            c.drawText("Abhimanyu Kumar | Kharadi, Pune, Maharashtra | Ph: +91 98234 56789", 30f, 62f, smallPaint)
+            val taglineStr = if (profile.tagline.isNotBlank()) profile.tagline else "Painting Contractor • Surface Protection & Decorative Finishes"
+            c.drawText(taglineStr, 30f, 48f, smallPaint)
+            val detailsStr = "${profile.ownerName} | ${profile.city}, ${profile.state} | Ph: ${profile.phone}"
+            c.drawText(detailsStr, 30f, 62f, smallPaint)
 
             // Estimate Type Badge
             val badgeTitle = if (isLabourOnly) "LABOUR-ONLY PAINTING QUOTATION" else "PAINTING ESTIMATE & QUOTATION"
@@ -165,8 +172,11 @@ object PdfGenerator {
             val netWall = room.getNetWallAreaSqft(projectDetails.project.deductOpenings)
             val netCeil = room.netCeilingAreaSqft
 
-            val wallAmt = details.wallPaint.calculateAmount(netWall, isLabourOnly)
-            val ceilAmt = details.ceilingPaint.calculateAmount(netCeil, isLabourOnly)
+            val wallFinalArea = if (room.wallPaintingEnabled) netWall * details.wallMultiplier else 0.0
+            val ceilFinalArea = if (room.ceilingPaintingEnabled) netCeil * details.ceilingMultiplier else 0.0
+
+            val wallAmt = details.wallPaint.calculateAmount(wallFinalArea, isLabourOnly)
+            val ceilAmt = details.ceilingPaint.calculateAmount(ceilFinalArea, isLabourOnly)
 
             // Check if page overflow
             if (yPos > 670f) {
@@ -195,7 +205,7 @@ object PdfGenerator {
                 canvas.drawText("  • Wall Painting (${details.wallPaint.brand} - ${details.wallPaint.productType})", 35f, yPos, textPaint)
                 canvas.drawText(CurrencyUtils.formatSqft(room.grossWallAreaSqft), 230f, yPos, textPaint)
                 canvas.drawText("−${CurrencyUtils.formatSqft(room.totalDeductionsSqft)}", 275f, yPos, textPaint)
-                canvas.drawText(CurrencyUtils.formatSqft(netWall), 325f, yPos, boldPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(wallFinalArea), 325f, yPos, boldPaint)
 
                 if (!isLabourOnly) {
                     canvas.drawText("₹${details.wallPaint.materialRate}", 380f, yPos, textPaint)
@@ -207,7 +217,13 @@ object PdfGenerator {
                 }
                 yPos += 11f
 
-                val wallSpecs = "     Brand: ${details.wallPaint.brand} • ${details.wallPaint.productType} ${details.wallPaint.productVariant} • ${details.wallPaint.coats} Coats"
+                val wallDimStr = details.wallEntries.take(4).joinToString(" | ") { w ->
+                    val coeff = if (w.multiplier != 1.0) " [Coeff: ${String.format(java.util.Locale.US, "%.2f", w.multiplier)}]" else ""
+                    if (w.isDirectArea) "${w.label}: ${CurrencyUtils.formatSqft(w.grossAreaSqft)}$coeff"
+                    else "${w.label}: ${w.lengthFt.toInt()}'${w.lengthIn.toInt()}\"×${w.heightFt.toInt()}'${w.heightIn.toInt()}\"$coeff"
+                }
+                val roomCoeffStr = if (details.wallMultiplier != 1.0) " • Room Coeff: ${String.format(java.util.Locale.US, "%.2f", details.wallMultiplier)}" else ""
+                val wallSpecs = "     Walls: $wallDimStr$roomCoeffStr • ${details.wallPaint.coats} Coats"
                 canvas.drawText(wallSpecs, 35f, yPos, productPaint)
                 yPos += 13f
             }
@@ -219,7 +235,7 @@ object PdfGenerator {
                 canvas.drawText("  • Ceiling Painting (${details.ceilingPaint.brand} - ${details.ceilingPaint.productType})", 35f, yPos, textPaint)
                 canvas.drawText(CurrencyUtils.formatSqft(room.grossCeilingAreaSqft), 230f, yPos, textPaint)
                 canvas.drawText("−${CurrencyUtils.formatSqft(room.totalCeilingDeductionsSqft)}", 275f, yPos, textPaint)
-                canvas.drawText(CurrencyUtils.formatSqft(netCeil), 325f, yPos, boldPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(ceilFinalArea), 325f, yPos, boldPaint)
 
                 if (!isLabourOnly) {
                     canvas.drawText("₹${details.ceilingPaint.materialRate}", 380f, yPos, textPaint)
@@ -231,7 +247,10 @@ object PdfGenerator {
                 }
                 yPos += 11f
 
-                val ceilSpecs = "     Brand: ${details.ceilingPaint.brand} • ${details.ceilingPaint.productType} ${details.ceilingPaint.productVariant} • ${details.ceilingPaint.coats} Coats"
+                val ceilDimStr = details.ceilingEntries.take(1).joinToString(" | ") { c ->
+                    "${c.lengthFt.toInt()}'${c.lengthIn.toInt()}\"×${c.widthFt.toInt()}'${c.widthIn.toInt()}\" (${String.format(java.util.Locale.US, "%.2f'×%.2f'", c.effectiveLengthFt, c.effectiveWidthFt)})"
+                }
+                val ceilSpecs = "     Size: $ceilDimStr • Coeff: ${String.format(java.util.Locale.US, "%.2f", details.ceilingMultiplier)} • ${details.ceilingPaint.coats} Coats"
                 canvas.drawText(ceilSpecs, 35f, yPos, productPaint)
                 yPos += 13f
             }
@@ -270,6 +289,106 @@ object PdfGenerator {
                 canvas.drawText("${CurrencyUtils.formatSqft(d.quantity)}", 325f, yPos, textPaint)
                 yPos += 14f
             }
+        }
+
+        // Woodwork & Polish Measurement items if any
+        if (projectDetails.woodPolishItems.isNotEmpty()) {
+            if (yPos > 620f) {
+                pdfDocument.finishPage(page)
+                currentPageNumber++
+                page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, currentPageNumber).create())
+                canvas = page.canvas
+                drawHeaderAndClientDetails(canvas)
+                yPos = 205f
+                drawTableHeader(canvas, yPos)
+                yPos += 22f
+            }
+
+            // Woodwork section banner
+            paint.color = Color.rgb(254, 243, 199)
+            canvas.drawRect(30f, yPos, 565f, yPos + 15f, paint)
+            boldPaint.textSize = 8.5f
+            boldPaint.color = Color.rgb(146, 64, 14)
+            canvas.drawText("WOODWORK & POLISH MEASUREMENTS (लकड़ी पॉलिश माप)", 35f, yPos + 11f, boldPaint)
+            yPos += 19f
+
+            projectDetails.woodPolishItems.forEach { item ->
+                if (yPos > 660f) {
+                    pdfDocument.finishPage(page)
+                    currentPageNumber++
+                    page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, currentPageNumber).create())
+                    canvas = page.canvas
+                    drawHeaderAndClientDetails(canvas)
+                    yPos = 205f
+                    drawTableHeader(canvas, yPos)
+                    yPos += 22f
+                }
+
+                textPaint.textSize = 8.5f
+                textPaint.color = Color.rgb(15, 23, 42)
+                val catLabel = when (item.category) {
+                    "DOOR" -> "Door"
+                    "WINDOW" -> "Window"
+                    else -> "Interior"
+                }
+                val polishDesc = if (item.polishBrand.isNotBlank()) "${item.polishType} (${item.polishBrand})" else item.polishType
+                val itemTitle = "  • [$catLabel] ${item.itemName} (${item.itemType}) - $polishDesc"
+                canvas.drawText(itemTitle.take(48), 35f, yPos, textPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(item.grossAreaSqft), 230f, yPos, textPaint)
+                canvas.drawText(if (item.deductionAreaSqft > 0) "−${CurrencyUtils.formatSqft(item.deductionAreaSqft)}" else "-", 275f, yPos, textPaint)
+                canvas.drawText(CurrencyUtils.formatSqft(item.finalBillableAreaSqft), 325f, yPos, boldPaint)
+
+                val itemAmt = item.getEffectiveAmount(isLabourOnly)
+                if (!isLabourOnly) {
+                    canvas.drawText("₹${item.materialRate}", 380f, yPos, textPaint)
+                    canvas.drawText("₹${item.labourRate}", 435f, yPos, textPaint)
+                    canvas.drawText(CurrencyUtils.formatInr(itemAmt), 495f, yPos, boldPaint)
+                } else {
+                    canvas.drawText("₹${item.labourRate}", 420f, yPos, textPaint)
+                    canvas.drawText(CurrencyUtils.formatInr(itemAmt), 495f, yPos, boldPaint)
+                }
+                yPos += 11f
+
+                val dimStr = if (item.lengthFt > 0 || item.lengthIn > 0) {
+                    "${item.heightFt.toInt()}'${item.heightIn.toInt()}\"×${item.widthFt.toInt()}'${item.widthIn.toInt()}\"×${item.lengthFt.toInt()}'${item.lengthIn.toInt()}\""
+                } else {
+                    "${item.heightFt.toInt()}'${item.heightIn.toInt()}\"×${item.widthFt.toInt()}'${item.widthIn.toInt()}\""
+                }
+                val adjStr = buildString {
+                    append("Coeff: ×${String.format(java.util.Locale.US, "%.2f", item.multiplier)}")
+                    if (item.plusAdjustment > 0) {
+                        append(" • +${item.plusAdjustment} ${if (item.plusUnit == AdjustmentUnit.MULTIPLIER) "×" else "sqft"}")
+                    }
+                    if (item.minusAdjustment > 0) {
+                        append(" • -${item.minusAdjustment} ${if (item.minusUnit == AdjustmentUnit.MULTIPLIER) "×" else "sqft"}")
+                    }
+                    if (item.shutterAreaSqft > 0 || item.frameAreaSqft > 0) {
+                        append(" [Shutter: ${CurrencyUtils.formatSqft(item.shutterAreaSqft)} | Frame: ${CurrencyUtils.formatSqft(item.frameAreaSqft)}]")
+                    }
+                }
+                val specLine = "     Qty: ${item.quantity} • Sides: ${item.polishSides} • Dim: $dimStr • $adjStr"
+                canvas.drawText(specLine.take(90), 35f, yPos, productPaint)
+                yPos += 13f
+
+                if (item.remarks.isNotBlank()) {
+                    canvas.drawText("     Note: ${item.remarks}".take(85), 35f, yPos, prepPaint)
+                    yPos += 12f
+                }
+
+                canvas.drawLine(30f, yPos, 565f, yPos, linePaint)
+                yPos += 6f
+            }
+
+            // Subtotal for Wood Polish
+            yPos += 2f
+            paint.color = Color.rgb(255, 251, 235)
+            canvas.drawRect(30f, yPos, 565f, yPos + 14f, paint)
+            boldPaint.textSize = 8f
+            boldPaint.color = Color.rgb(180, 83, 9)
+            val woodTotAmt = if (isLabourOnly) projectDetails.totalWoodPolishLabourCost else projectDetails.totalWoodPolishAmount
+            canvas.drawText("Wood Polish Subtotal: ${CurrencyUtils.formatSqft(projectDetails.totalWoodPolishFinalAreaSqft)} Net Area", 35f, yPos + 10.5f, boldPaint)
+            canvas.drawText(CurrencyUtils.formatInr(woodTotAmt), 495f, yPos + 10.5f, boldPaint)
+            yPos += 20f
         }
 
         // Financial Calculation Summary Box
@@ -342,7 +461,7 @@ object PdfGenerator {
         }
         canvas.drawText("• Payment Schedule: 50% advance before commencement, 40% on primer/putty completion, 10% on handover.", 38f, termsY + 34f, smallPaint)
         canvas.drawText("• Continuous water and uninterrupted electricity at site to be provided by client.", 38f, termsY + 45f, smallPaint)
-        canvas.drawText("• Quotation valid for 30 days. Contact Abhimanyu Kumar, Kharadi, Pune | +91 98234 56789.", 38f, termsY + 56f, smallPaint)
+        canvas.drawText("• Quotation valid for ${profile.quoteValidityDays} days. Contact ${profile.ownerName}, ${profile.city} | ${profile.phone}.", 38f, termsY + 56f, smallPaint)
 
         // Customer acceptance and signature space
         val sigY = termsY + 95f
@@ -351,8 +470,8 @@ object PdfGenerator {
         canvas.drawLine(370f, sigY, 540f, sigY, paint)
         textPaint.textSize = 8.5f
         canvas.drawText("Customer Acceptance & Signature", 45f, sigY + 13f, textPaint)
-        canvas.drawText("For DIVYANSH ENTERPRISES", 380f, sigY + 13f, textPaint)
-        canvas.drawText("(Abhimanyu Kumar - Authorized Signatory)", 365f, sigY + 24f, smallPaint)
+        canvas.drawText("For ${profile.businessName.uppercase()}", 380f, sigY + 13f, textPaint)
+        canvas.drawText("(${profile.ownerName} - Authorized Signatory)", 365f, sigY + 24f, smallPaint)
 
         pdfDocument.finishPage(page)
 
@@ -402,6 +521,16 @@ object PdfGenerator {
             }
             context.startActivity(Intent.createChooser(shareIntent, "Share Quotation PDF"))
         }
+    }
+
+    fun sharePdfFile(context: Context, file: File) {
+        val uri = getFileUri(context, file)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Quotation PDF"))
     }
 
     fun printPdf(context: Context, file: File, jobName: String) {

@@ -192,6 +192,14 @@ object BackupUtils {
             sb.append("${i.totalAmountMaterialAndLabour}\n")
         }
 
+        if (projectDetails.woodPolishItems.isNotEmpty()) {
+            sb.append("\nWOODWORK & POLISH MEASUREMENTS\n")
+            sb.append("Category,Item Name,Location,Type,Polish Type,Brand,Qty,Sides,Height(ft),Width(ft),Gross Area(sqft),Deduction(sqft),Multiplier,Plus,Minus,Net Area(sqft),Labour Rate,Material Rate,Total Amount\n")
+            projectDetails.woodPolishItems.forEach { w ->
+                sb.append("\"${w.category}\",\"${w.itemName}\",\"${w.roomName}\",\"${w.itemType}\",\"${w.polishType}\",\"${w.polishBrand}\",${w.quantity},${w.polishSides},${w.effectiveHeightFt},${w.effectiveWidthFt},${w.grossAreaSqft},${w.deductionAreaSqft},${w.multiplier},${w.plusAdjustment},${w.minusAdjustment},${w.finalBillableAreaSqft},${w.labourRate},${w.materialRate},${w.totalAmount}\n")
+            }
+        }
+
         sb.append("\nFINANCIAL SUMMARY\n")
         sb.append("Labour Subtotal,${projectDetails.labourSubtotal}\n")
         sb.append("Material Subtotal,${projectDetails.materialSubtotal}\n")

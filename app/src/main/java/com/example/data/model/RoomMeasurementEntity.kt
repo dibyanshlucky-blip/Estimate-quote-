@@ -115,10 +115,32 @@ data class RoomMeasurementEntity(
         get() = max(0.0, grossCeilingAreaSqft - totalCeilingDeductionsSqft)
 
     fun getTotalPaintableAreaSqft(deductOpenings: Boolean): Double {
-        val wallArea = if (wallPaintingEnabled) getNetWallAreaSqft(deductOpenings) else 0.0
-        val ceilingArea = if (ceilingPaintingEnabled) netCeilingAreaSqft else 0.0
+        val wallArea = if (wallPaintingEnabled) getNetWallAreaSqft(deductOpenings) * wallMultiplierCoefficient else 0.0
+        val ceilingArea = if (ceilingPaintingEnabled) netCeilingAreaSqft * ceilingMultiplierCoefficient else 0.0
         return wallArea + ceilingArea
     }
+
+    val wallMultiplierCoefficient: Double
+        get() = if (detailedData.isNotBlank()) getParsedDetails().wallMultiplier else 1.0
+
+    val ceilingMultiplierCoefficient: Double
+        get() = if (detailedData.isNotBlank()) getParsedDetails().ceilingMultiplier else 1.0
+
+    val finalWallAreaSqft: Double
+        get() {
+            if (!wallPaintingEnabled) return 0.0
+            val net = getNetWallAreaSqft(true)
+            return net * wallMultiplierCoefficient
+        }
+
+    val finalCeilingAreaSqft: Double
+        get() {
+            if (!ceilingPaintingEnabled) return 0.0
+            return netCeilingAreaSqft * ceilingMultiplierCoefficient
+        }
+
+    val combinedFinalAreaSqft: Double
+        get() = finalWallAreaSqft + finalCeilingAreaSqft
 
     fun getParsedDetails(): RoomDetailsJsonConverter.ParsedRoomDetails {
         return RoomDetailsJsonConverter.deserialize(detailedData, this)

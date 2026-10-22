@@ -102,7 +102,30 @@ object LanguageManager {
             "export_json" to "Backup All Data (JSON)",
             "import_json" to "Restore Data (JSON)",
             "export_csv" to "Export Estimates (CSV)",
-            "reset_defaults" to "Reset to Default Rates"
+            "reset_defaults" to "Reset to Default Rates",
+            "business_settings" to "Business Settings",
+            "edit_business_settings" to "Edit Business Settings",
+            "business_name" to "Business / Enterprise Name",
+            "owner_name" to "Owner / Proprietor Name",
+            "business_phone" to "Mobile / Contact Number",
+            "business_email" to "Email Address",
+            "business_address" to "Business Address",
+            "business_city" to "City",
+            "business_state" to "State",
+            "business_pincode" to "Pincode",
+            "business_gstin" to "GSTIN / Tax ID",
+            "business_tagline" to "Tagline / Services",
+            "business_upi" to "UPI ID (Payments)",
+            "terms_conditions" to "Quotation Terms & Conditions",
+            "quote_validity" to "Quotation Validity (Days)",
+            "save_business_settings" to "Save Business Profile",
+            "reset_business_settings" to "Reset to Divyansh Defaults",
+            "business_settings_updated" to "Business settings updated successfully",
+            "woodwork_polish" to "Woodwork & Polish Measurement",
+            "woodwork_polish_desc" to "Door, Window & Interior Polish",
+            "door_polish" to "Door Polish Measurement",
+            "window_polish" to "Window Polish Measurement",
+            "interior_polish" to "Interior Wood Polish"
         )
 
         val hiMap = mapOf(
@@ -199,7 +222,30 @@ object LanguageManager {
             "export_json" to "पूरा डेटा बैकअप (JSON)",
             "import_json" to "डेटा रीस्टोर करें (JSON)",
             "export_csv" to "एस्टीमेट एक्सपोर्ट (CSV)",
-            "reset_defaults" to "पुणे डिफ़ॉल्ट दरें रीसेट करें"
+            "reset_defaults" to "पुणे डिफ़ॉल्ट दरें रीसेट करें",
+            "business_settings" to "व्यापार सेटिंग्स (Business Settings)",
+            "edit_business_settings" to "व्यापार प्रोफाइल संपादित करें",
+            "business_name" to "व्यवसाय / कंपनी का नाम",
+            "owner_name" to "मालिक / प्रोपराइटर का नाम",
+            "business_phone" to "मोबाइल / संपर्क नंबर",
+            "business_email" to "ईमेल पता",
+            "business_address" to "दुकान / कार्यालय का पता",
+            "business_city" to "शहर (उदा. Pune)",
+            "business_state" to "राज्य (उदा. Maharashtra)",
+            "business_pincode" to "पिनकोड",
+            "business_gstin" to "जीएसटी नंबर (GSTIN)",
+            "business_tagline" to "टैगलाइन / कार्य विवरण",
+            "business_upi" to "यूपीआई आईडी (पेमेंट प्राप्त करने हेतु)",
+            "terms_conditions" to "कोटेशन की नियम व शर्तें",
+            "quote_validity" to "कोटेशन वैधता (दिन)",
+            "save_business_settings" to "व्यापार सेटिंग्स सुरक्षित करें",
+            "reset_business_settings" to "दिव्यांश डिफ़ॉल्ट्स रीसेट करें",
+            "business_settings_updated" to "व्यापार सेटिंग्स सफलतापूर्वक अपडेट की गईं",
+            "woodwork_polish" to "वुडवर्क और पॉलिश माप",
+            "woodwork_polish_desc" to "दरवाजा, खिड़की और इंटीरियर पॉलिश",
+            "door_polish" to "दरवाजा पॉलिश माप",
+            "window_polish" to "खिड़की पॉलिश माप",
+            "interior_polish" to "इंटीरियर लकड़ी पॉलिश"
         )
 
         return when (language) {

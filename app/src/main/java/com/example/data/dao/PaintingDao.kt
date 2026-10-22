@@ -196,4 +196,26 @@ interface PaintingDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateSiteProgress(progress: com.example.data.model.SiteProgressEntity)
+
+    // Wood & Polish Measurements
+    @Query("SELECT * FROM wood_polish_items WHERE projectId = :projectId ORDER BY id ASC")
+    fun getWoodPolishByProject(projectId: Long): Flow<List<com.example.data.model.WoodPolishEntity>>
+
+    @Query("SELECT * FROM wood_polish_items WHERE projectId = :projectId ORDER BY id ASC")
+    suspend fun getWoodPolishByProjectDirect(projectId: Long): List<com.example.data.model.WoodPolishEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWoodPolishItem(item: com.example.data.model.WoodPolishEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWoodPolishItems(items: List<com.example.data.model.WoodPolishEntity>)
+
+    @Update
+    suspend fun updateWoodPolishItem(item: com.example.data.model.WoodPolishEntity)
+
+    @Delete
+    suspend fun deleteWoodPolishItem(item: com.example.data.model.WoodPolishEntity)
+
+    @Query("DELETE FROM wood_polish_items WHERE id = :id")
+    suspend fun deleteWoodPolishItemById(id: Long)
 }

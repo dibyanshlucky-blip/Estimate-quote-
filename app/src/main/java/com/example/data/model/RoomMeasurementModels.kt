@@ -3,6 +3,7 @@ package com.example.data.model
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.max
+import com.example.util.CurrencyUtils
 
 /**
  * Represents a single wall measurement line (Length x Height or Direct Sqft).
@@ -20,7 +21,8 @@ data class WallMeasurementEntry(
     val heightFt: Double = 10.0,
     val heightIn: Double = 0.0,
     val wallCount: Int = 1,
-    val directAreaSqft: Double = 0.0
+    val directAreaSqft: Double = 0.0,
+    val multiplier: Double = 1.0
 ) {
     val effectiveLengthFt: Double
         get() = lengthFt + (lengthIn / 12.0)
@@ -28,8 +30,21 @@ data class WallMeasurementEntry(
     val effectiveHeightFt: Double
         get() = heightFt + (heightIn / 12.0)
 
-    val grossAreaSqft: Double
+    val baseGrossAreaSqft: Double
         get() = if (isDirectArea) directAreaSqft else wallCount * (effectiveLengthFt * effectiveHeightFt)
+
+    val grossAreaSqft: Double
+        get() = baseGrossAreaSqft * multiplier
+
+    val readableDimensions: String
+        get() = if (isDirectArea) {
+            if (multiplier != 1.0) "${CurrencyUtils.formatSqft(baseGrossAreaSqft)} (× ${String.format(java.util.Locale.US, "%.2f", multiplier)})"
+            else CurrencyUtils.formatSqft(directAreaSqft)
+        } else {
+            val base = "${lengthFt.toInt()} ft ${lengthIn.toInt()} in × ${heightFt.toInt()} ft ${heightIn.toInt()} in"
+            if (multiplier != 1.0) "$base (× ${String.format(java.util.Locale.US, "%.2f", multiplier)})"
+            else base
+        }
 }
 
 /**
@@ -55,6 +70,10 @@ data class WallDeductionEntry(
 
     val deductionAreaSqft: Double
         get() = if (isDirectArea) directAreaSqft else count * (effectiveLengthFt * effectiveHeightFt)
+
+    val readableDimensions: String
+        get() = if (isDirectArea) "${CurrencyUtils.formatSqft(directAreaSqft)}"
+        else "${lengthFt.toInt()} ft ${lengthIn.toInt()} in × ${heightFt.toInt()} ft ${heightIn.toInt()} in"
 }
 
 /**
@@ -79,6 +98,10 @@ data class CeilingMeasurementEntry(
 
     val grossAreaSqft: Double
         get() = if (isDirectArea) directAreaSqft else effectiveLengthFt * effectiveWidthFt
+
+    val readableDimensions: String
+        get() = if (isDirectArea) "${CurrencyUtils.formatSqft(directAreaSqft)}"
+        else "${lengthFt.toInt()} ft ${lengthIn.toInt()} in × ${widthFt.toInt()} ft ${widthIn.toInt()} in"
 }
 
 /**
@@ -103,6 +126,10 @@ data class CeilingDeductionEntry(
 
     val deductionAreaSqft: Double
         get() = if (isDirectArea) directAreaSqft else effectiveLengthFt * effectiveWidthFt
+
+    val readableDimensions: String
+        get() = if (isDirectArea) "${CurrencyUtils.formatSqft(directAreaSqft)}"
+        else "${lengthFt.toInt()} ft ${lengthIn.toInt()} in × ${widthFt.toInt()} ft ${widthIn.toInt()} in"
 }
 
 /**
@@ -124,8 +151,13 @@ data class SurfacePaintConfig(
         return if (isLabourOnly) labourRate else totalRate
     }
 
-    fun calculateAmount(netAreaSqft: Double, isLabourOnly: Boolean): Double {
-        return netAreaSqft * getEffectiveRate(isLabourOnly)
+    fun hasValidRate(isLabourOnly: Boolean): Boolean {
+        return getEffectiveRate(isLabourOnly) > 0.0
+    }
+
+    fun calculateAmount(finalAreaSqft: Double, isLabourOnly: Boolean): Double {
+        val rate = getEffectiveRate(isLabourOnly)
+        return if (rate > 0.0) finalAreaSqft * rate else 0.0
     }
 }
 
@@ -176,9 +208,22 @@ object RoomDetailsJsonConverter {
         ceilingDeductions: List<CeilingDeductionEntry>,
         ceilingPaint: SurfacePaintConfig,
         ceilingPutty: SurfacePrepConfig,
-        ceilingPrimer: SurfacePrepConfig
+        ceilingPrimer: SurfacePrepConfig,
+        wallMultiplier: Double = 1.0,
+        ceilingMultiplier: Double = 1.0,
+        wallPaintingEnabled: Boolean = true,
+        ceilingPaintingEnabled: Boolean = true,
+        wallRemarks: String = "",
+        ceilingRemarks: String = ""
     ): String {
         val root = JSONObject()
+
+        root.put("wallMultiplier", wallMultiplier)
+        root.put("ceilingMultiplier", ceilingMultiplier)
+        root.put("wallPaintingEnabled", wallPaintingEnabled)
+        root.put("ceilingPaintingEnabled", ceilingPaintingEnabled)
+        root.put("wallRemarks", wallRemarks.ifBlank { wallPaint.remarks })
+        root.put("ceilingRemarks", ceilingRemarks.ifBlank { ceilingPaint.remarks })
 
         val wallEntriesArr = JSONArray()
         wallEntries.forEach { w ->
@@ -192,6 +237,7 @@ object RoomDetailsJsonConverter {
             obj.put("heightIn", w.heightIn)
             obj.put("wallCount", w.wallCount)
             obj.put("directAreaSqft", w.directAreaSqft)
+            obj.put("multiplier", w.multiplier)
             wallEntriesArr.put(obj)
         }
         root.put("wallEntries", wallEntriesArr)
@@ -323,7 +369,13 @@ object RoomDetailsJsonConverter {
         val ceilingDeductions: List<CeilingDeductionEntry>,
         val ceilingPaint: SurfacePaintConfig,
         val ceilingPutty: SurfacePrepConfig,
-        val ceilingPrimer: SurfacePrepConfig
+        val ceilingPrimer: SurfacePrepConfig,
+        val wallMultiplier: Double = 1.0,
+        val ceilingMultiplier: Double = 1.0,
+        val wallPaintingEnabled: Boolean = true,
+        val ceilingPaintingEnabled: Boolean = true,
+        val wallRemarks: String = "",
+        val ceilingRemarks: String = ""
     )
 
     fun deserialize(jsonStr: String?, fallbackRoom: RoomMeasurementEntity): ParsedRoomDetails {
@@ -333,6 +385,11 @@ object RoomDetailsJsonConverter {
 
         return try {
             val root = JSONObject(jsonStr)
+
+            val wallMultiplier = root.optDouble("wallMultiplier", 1.0).coerceAtLeast(0.01)
+            val ceilingMultiplier = root.optDouble("ceilingMultiplier", 1.0).coerceAtLeast(0.01)
+            val wallPaintingEnabled = root.optBoolean("wallPaintingEnabled", fallbackRoom.wallPaintingEnabled)
+            val ceilingPaintingEnabled = root.optBoolean("ceilingPaintingEnabled", fallbackRoom.ceilingPaintingEnabled)
 
             val wallEntries = mutableListOf<WallMeasurementEntry>()
             val wallArr = root.optJSONArray("wallEntries")
@@ -349,7 +406,8 @@ object RoomDetailsJsonConverter {
                             heightFt = obj.optDouble("heightFt", 10.0),
                             heightIn = obj.optDouble("heightIn", 0.0),
                             wallCount = obj.optInt("wallCount", 1),
-                            directAreaSqft = obj.optDouble("directAreaSqft", 0.0)
+                            directAreaSqft = obj.optDouble("directAreaSqft", 0.0),
+                            multiplier = obj.optDouble("multiplier", 1.0).coerceAtLeast(0.01)
                         )
                     )
                 }
@@ -388,6 +446,8 @@ object RoomDetailsJsonConverter {
                 defaultMatRate = 16.0,
                 defaultLabRate = 12.0
             )
+
+            val wallRemarks = root.optString("wallRemarks", wallPaint.remarks)
 
             val wallPutty = parseSurfacePrep(
                 root.optJSONObject("wallPutty"),
@@ -458,6 +518,8 @@ object RoomDetailsJsonConverter {
                 defaultLabRate = 10.0
             )
 
+            val ceilingRemarks = root.optString("ceilingRemarks", ceilingPaint.remarks)
+
             val ceilingPutty = parseSurfacePrep(
                 root.optJSONObject("ceilingPutty"),
                 title = "Ceiling Putty",
@@ -486,7 +548,13 @@ object RoomDetailsJsonConverter {
                 ceilingDeductions = ceilDeductions,
                 ceilingPaint = ceilingPaint,
                 ceilingPutty = ceilingPutty,
-                ceilingPrimer = ceilingPrimer
+                ceilingPrimer = ceilingPrimer,
+                wallMultiplier = wallMultiplier,
+                ceilingMultiplier = ceilingMultiplier,
+                wallPaintingEnabled = wallPaintingEnabled,
+                ceilingPaintingEnabled = ceilingPaintingEnabled,
+                wallRemarks = wallRemarks,
+                ceilingRemarks = ceilingRemarks
             )
         } catch (_: Exception) {
             buildFallbackDetails(fallbackRoom)
@@ -674,7 +742,13 @@ object RoomDetailsJsonConverter {
                 coats = 1,
                 materialRate = 4.5,
                 labourRate = 4.0
-            )
+            ),
+            wallMultiplier = 1.0,
+            ceilingMultiplier = 1.0,
+            wallPaintingEnabled = room.wallPaintingEnabled,
+            ceilingPaintingEnabled = room.ceilingPaintingEnabled,
+            wallRemarks = "",
+            ceilingRemarks = ""
         )
     }
 }

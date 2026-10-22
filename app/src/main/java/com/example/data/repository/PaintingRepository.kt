@@ -24,6 +24,7 @@ class PaintingRepository(private val dao: PaintingDao) {
     fun getDirectByProject(projectId: Long): Flow<List<DirectMeasurementEntity>> = dao.getDirectByProject(projectId)
     fun getEstimateItemsByProject(projectId: Long): Flow<List<EstimateItemEntity>> = dao.getEstimateItemsByProject(projectId)
     fun getPaymentsByProject(projectId: Long): Flow<List<PaymentEntity>> = dao.getPaymentsByProject(projectId)
+    fun getWoodPolishByProject(projectId: Long): Flow<List<com.example.data.model.WoodPolishEntity>> = dao.getWoodPolishByProject(projectId)
 
     fun getProjectWithDetails(projectId: Long): Flow<ProjectWithDetails?> {
         return combine(
@@ -31,15 +32,29 @@ class PaintingRepository(private val dao: PaintingDao) {
             dao.getRoomsByProject(projectId),
             dao.getDirectByProject(projectId),
             dao.getEstimateItemsByProject(projectId),
-            dao.getPaymentsByProject(projectId)
-        ) { project, rooms, directs, items, payments ->
+            dao.getPaymentsByProject(projectId),
+            dao.getWoodPolishByProject(projectId)
+        ) { args: Array<Any?> ->
+            val project = args[0] as? ProjectEntity
+            @Suppress("UNCHECKED_CAST")
+            val rooms = (args[1] as? List<RoomMeasurementEntity>) ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val directs = (args[2] as? List<DirectMeasurementEntity>) ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val items = (args[3] as? List<EstimateItemEntity>) ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val payments = (args[4] as? List<PaymentEntity>) ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val woodPolish = (args[5] as? List<com.example.data.model.WoodPolishEntity>) ?: emptyList()
+
             if (project != null) {
                 ProjectWithDetails(
                     project = project,
                     rooms = rooms,
                     directMeasurements = directs,
                     estimateItems = items,
-                    payments = payments
+                    payments = payments,
+                    woodPolishItems = woodPolish
                 )
             } else {
                 null
@@ -53,7 +68,8 @@ class PaintingRepository(private val dao: PaintingDao) {
         val directs = dao.getDirectByProjectDirect(projectId)
         val items = dao.getEstimateItemsByProjectDirect(projectId)
         val payments = dao.getPaymentsByProjectDirect(projectId)
-        return ProjectWithDetails(project, rooms, directs, items, payments)
+        val woodPolish = dao.getWoodPolishByProjectDirect(projectId)
+        return ProjectWithDetails(project, rooms, directs, items, payments, woodPolish)
     }
 
     // Seeding default catalogue and sample data if empty
@@ -153,6 +169,33 @@ class PaintingRepository(private val dao: PaintingDao) {
     // Site Progress CRUD
     fun getSiteProgress(projectId: Long): Flow<com.example.data.model.SiteProgressEntity?> = dao.getSiteProgress(projectId)
     suspend fun saveSiteProgress(progress: com.example.data.model.SiteProgressEntity) = dao.insertOrUpdateSiteProgress(progress)
+
+    // Wood Polish CRUD
+    suspend fun saveWoodPolishItem(item: com.example.data.model.WoodPolishEntity): Long {
+        return if (item.id == 0L) {
+            dao.insertWoodPolishItem(item)
+        } else {
+            dao.updateWoodPolishItem(item)
+            item.id
+        }
+    }
+
+    suspend fun deleteWoodPolishItem(item: com.example.data.model.WoodPolishEntity) {
+        dao.deleteWoodPolishItem(item)
+    }
+
+    suspend fun deleteWoodPolishItemById(id: Long) {
+        dao.deleteWoodPolishItemById(id)
+    }
+
+    suspend fun duplicateWoodPolishItem(item: com.example.data.model.WoodPolishEntity): Long {
+        val copy = item.copy(
+            id = 0,
+            itemName = "${item.itemName} (Copy)",
+            updatedAt = System.currentTimeMillis()
+        )
+        return dao.insertWoodPolishItem(copy)
+    }
 
     suspend fun resetCatalogueToDefault() {
         dao.clearCatalogue()

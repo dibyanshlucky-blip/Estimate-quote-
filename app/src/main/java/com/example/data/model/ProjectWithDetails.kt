@@ -5,17 +5,40 @@ data class ProjectWithDetails(
     val rooms: List<RoomMeasurementEntity> = emptyList(),
     val directMeasurements: List<DirectMeasurementEntity> = emptyList(),
     val estimateItems: List<EstimateItemEntity> = emptyList(),
-    val payments: List<PaymentEntity> = emptyList()
+    val payments: List<PaymentEntity> = emptyList(),
+    val woodPolishItems: List<WoodPolishEntity> = emptyList()
 ) {
+    // Wood & Polish rollups
+    val totalWoodPolishFinalAreaSqft: Double
+        get() = woodPolishItems.sumOf { it.finalBillableAreaSqft }
+
+    val totalDoorPolishAreaSqft: Double
+        get() = woodPolishItems.filter { it.category == "DOOR" }.sumOf { it.finalBillableAreaSqft }
+
+    val totalWindowPolishAreaSqft: Double
+        get() = woodPolishItems.filter { it.category == "WINDOW" }.sumOf { it.finalBillableAreaSqft }
+
+    val totalInteriorPolishAreaSqft: Double
+        get() = woodPolishItems.filter { it.category == "INTERIOR" }.sumOf { it.finalBillableAreaSqft }
+
+    val totalWoodPolishLabourCost: Double
+        get() = woodPolishItems.sumOf { it.labourAmount }
+
+    val totalWoodPolishMaterialCost: Double
+        get() = woodPolishItems.sumOf { it.materialAmount }
+
+    val totalWoodPolishAmount: Double
+        get() = woodPolishItems.sumOf { it.getEffectiveAmount(isLabourOnlyMode) }
+
     // Room calculations
     val totalRoomPaintableAreaSqft: Double
         get() = rooms.sumOf { it.getTotalPaintableAreaSqft(project.deductOpenings) }
 
     val totalRoomCeilingAreaSqft: Double
-        get() = rooms.filter { it.ceilingPaintingEnabled }.sumOf { it.floorCeilingAreaSqft }
+        get() = rooms.filter { it.ceilingPaintingEnabled }.sumOf { it.finalCeilingAreaSqft }
 
     val totalRoomNetWallAreaSqft: Double
-        get() = rooms.filter { it.wallPaintingEnabled }.sumOf { it.getNetWallAreaSqft(project.deductOpenings) }
+        get() = rooms.filter { it.wallPaintingEnabled }.sumOf { it.finalWallAreaSqft }
 
     // Direct sqft calculations
     val totalDirectSqft: Double
@@ -45,61 +68,60 @@ data class ProjectWithDetails(
     val totalRoomWallPaintAmount: Double
         get() = rooms.filter { it.wallPaintingEnabled }.sumOf { r ->
             val details = r.getParsedDetails()
-            val netWall = r.getNetWallAreaSqft(project.deductOpenings)
-            details.wallPaint.calculateAmount(netWall, isLabourOnlyMode)
+            details.wallPaint.calculateAmount(r.finalWallAreaSqft, isLabourOnlyMode)
         }
 
     val totalRoomCeilingPaintAmount: Double
         get() = rooms.filter { it.ceilingPaintingEnabled }.sumOf { r ->
             val details = r.getParsedDetails()
-            details.ceilingPaint.calculateAmount(r.netCeilingAreaSqft, isLabourOnlyMode)
+            details.ceilingPaint.calculateAmount(r.finalCeilingAreaSqft, isLabourOnlyMode)
         }
 
     val totalRoomPuttyCost: Double
         get() = rooms.sumOf { r ->
             val details = r.getParsedDetails()
-            val wallNet = if (r.wallPaintingEnabled) r.getNetWallAreaSqft(project.deductOpenings) else 0.0
-            val ceilNet = if (r.ceilingPaintingEnabled) r.netCeilingAreaSqft else 0.0
-            val wPutty = details.wallPutty.calculateAmount(wallNet, isLabourOnlyMode)
-            val cPutty = details.ceilingPutty.calculateAmount(ceilNet, isLabourOnlyMode)
+            val wallFinal = if (r.wallPaintingEnabled) r.finalWallAreaSqft else 0.0
+            val ceilFinal = if (r.ceilingPaintingEnabled) r.finalCeilingAreaSqft else 0.0
+            val wPutty = details.wallPutty.calculateAmount(wallFinal, isLabourOnlyMode)
+            val cPutty = details.ceilingPutty.calculateAmount(ceilFinal, isLabourOnlyMode)
             wPutty + cPutty
         }
 
     val totalRoomPrimerCost: Double
         get() = rooms.sumOf { r ->
             val details = r.getParsedDetails()
-            val wallNet = if (r.wallPaintingEnabled) r.getNetWallAreaSqft(project.deductOpenings) else 0.0
-            val ceilNet = if (r.ceilingPaintingEnabled) r.netCeilingAreaSqft else 0.0
-            val wPrimer = details.wallPrimer.calculateAmount(wallNet, isLabourOnlyMode)
-            val cPrimer = details.ceilingPrimer.calculateAmount(ceilNet, isLabourOnlyMode)
+            val wallFinal = if (r.wallPaintingEnabled) r.finalWallAreaSqft else 0.0
+            val ceilFinal = if (r.ceilingPaintingEnabled) r.finalCeilingAreaSqft else 0.0
+            val wPrimer = details.wallPrimer.calculateAmount(wallFinal, isLabourOnlyMode)
+            val cPrimer = details.ceilingPrimer.calculateAmount(ceilFinal, isLabourOnlyMode)
             wPrimer + cPrimer
         }
 
     val totalRoomMaterialCost: Double
         get() = rooms.sumOf { r ->
             val details = r.getParsedDetails()
-            val wallNet = if (r.wallPaintingEnabled) r.getNetWallAreaSqft(project.deductOpenings) else 0.0
-            val ceilNet = if (r.ceilingPaintingEnabled) r.netCeilingAreaSqft else 0.0
-            val wallMat = wallNet * details.wallPaint.materialRate
-            val ceilMat = ceilNet * details.ceilingPaint.materialRate
-            val wPuttyMat = if (details.wallPutty.enabled) details.wallPutty.getEffectiveArea(wallNet) * details.wallPutty.materialRate else 0.0
-            val cPuttyMat = if (details.ceilingPutty.enabled) details.ceilingPutty.getEffectiveArea(ceilNet) * details.ceilingPutty.materialRate else 0.0
-            val wPrimerMat = if (details.wallPrimer.enabled) details.wallPrimer.getEffectiveArea(wallNet) * details.wallPrimer.materialRate else 0.0
-            val cPrimerMat = if (details.ceilingPrimer.enabled) details.ceilingPrimer.getEffectiveArea(ceilNet) * details.ceilingPrimer.materialRate else 0.0
+            val wallFinal = if (r.wallPaintingEnabled) r.finalWallAreaSqft else 0.0
+            val ceilFinal = if (r.ceilingPaintingEnabled) r.finalCeilingAreaSqft else 0.0
+            val wallMat = wallFinal * details.wallPaint.materialRate
+            val ceilMat = ceilFinal * details.ceilingPaint.materialRate
+            val wPuttyMat = if (details.wallPutty.enabled) details.wallPutty.getEffectiveArea(wallFinal) * details.wallPutty.materialRate else 0.0
+            val cPuttyMat = if (details.ceilingPutty.enabled) details.ceilingPutty.getEffectiveArea(ceilFinal) * details.ceilingPutty.materialRate else 0.0
+            val wPrimerMat = if (details.wallPrimer.enabled) details.wallPrimer.getEffectiveArea(wallFinal) * details.wallPrimer.materialRate else 0.0
+            val cPrimerMat = if (details.ceilingPrimer.enabled) details.ceilingPrimer.getEffectiveArea(ceilFinal) * details.ceilingPrimer.materialRate else 0.0
             wallMat + ceilMat + wPuttyMat + cPuttyMat + wPrimerMat + cPrimerMat
         }
 
     val totalRoomLabourCost: Double
         get() = rooms.sumOf { r ->
             val details = r.getParsedDetails()
-            val wallNet = if (r.wallPaintingEnabled) r.getNetWallAreaSqft(project.deductOpenings) else 0.0
-            val ceilNet = if (r.ceilingPaintingEnabled) r.netCeilingAreaSqft else 0.0
-            val wallLab = wallNet * details.wallPaint.labourRate
-            val ceilLab = ceilNet * details.ceilingPaint.labourRate
-            val wPuttyLab = if (details.wallPutty.enabled) details.wallPutty.getEffectiveArea(wallNet) * details.wallPutty.labourRate else 0.0
-            val cPuttyLab = if (details.ceilingPutty.enabled) details.ceilingPutty.getEffectiveArea(ceilNet) * details.ceilingPutty.labourRate else 0.0
-            val wPrimerLab = if (details.wallPrimer.enabled) details.wallPrimer.getEffectiveArea(wallNet) * details.wallPrimer.labourRate else 0.0
-            val cPrimerLab = if (details.ceilingPrimer.enabled) details.ceilingPrimer.getEffectiveArea(ceilNet) * details.ceilingPrimer.labourRate else 0.0
+            val wallFinal = if (r.wallPaintingEnabled) r.finalWallAreaSqft else 0.0
+            val ceilFinal = if (r.ceilingPaintingEnabled) r.finalCeilingAreaSqft else 0.0
+            val wallLab = wallFinal * details.wallPaint.labourRate
+            val ceilLab = ceilFinal * details.ceilingPaint.labourRate
+            val wPuttyLab = if (details.wallPutty.enabled) details.wallPutty.getEffectiveArea(wallFinal) * details.wallPutty.labourRate else 0.0
+            val cPuttyLab = if (details.ceilingPutty.enabled) details.ceilingPutty.getEffectiveArea(ceilFinal) * details.ceilingPutty.labourRate else 0.0
+            val wPrimerLab = if (details.wallPrimer.enabled) details.wallPrimer.getEffectiveArea(wallFinal) * details.wallPrimer.labourRate else 0.0
+            val cPrimerLab = if (details.ceilingPrimer.enabled) details.ceilingPrimer.getEffectiveArea(ceilFinal) * details.ceilingPrimer.labourRate else 0.0
             wallLab + ceilLab + wPuttyLab + cPuttyLab + wPrimerLab + cPrimerLab
         }
 
@@ -109,9 +131,9 @@ data class ProjectWithDetails(
     // Financial calculations - Labour only
     val labourSubtotal: Double
         get() = if (estimateItems.isNotEmpty()) {
-            estimateItems.sumOf { it.labourAmount }
+            estimateItems.sumOf { it.labourAmount } + totalWoodPolishLabourCost
         } else {
-            totalRoomLabourCost
+            totalRoomLabourCost + totalWoodPolishLabourCost
         }
 
     val labourNetBeforeTax: Double
@@ -126,16 +148,16 @@ data class ProjectWithDetails(
     // Financial calculations - Material + Labour
     val materialSubtotal: Double
         get() = if (estimateItems.isNotEmpty()) {
-            estimateItems.sumOf { it.materialAmount }
+            estimateItems.sumOf { it.materialAmount } + totalWoodPolishMaterialCost
         } else {
-            totalRoomMaterialCost
+            totalRoomMaterialCost + totalWoodPolishMaterialCost
         }
 
     val materialAndLabourSubtotal: Double
         get() = if (estimateItems.isNotEmpty()) {
             materialSubtotal + labourSubtotal
         } else {
-            totalRoomMaterialCost + totalRoomLabourCost
+            totalRoomMaterialCost + totalRoomLabourCost + totalWoodPolishAmount
         }
 
     val materialAndLabourNetBeforeTax: Double
